@@ -1,0 +1,15 @@
+[project]
+name = "weccap"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "flask",
+    "flask_cors",
+    "flask-socketio",
+    "numpy",
+    "opencv-python",
+    "pseyepy @ ${PROJECT_ROOT}/../pseyepy/",
+    "scipy"
+]
