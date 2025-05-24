@@ -12,14 +12,16 @@ interface Props {
     objectPoints: MutableRefObject<number[][][]>
     objectPointErrors: any,
     lastObjectPointTimestamp: any,
+    isRecording: boolean,
+    setIsRecording: (b: boolean) => void
 }
 
 
-export default function Capture({mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp}: Props) {
+export default function Capture({ mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
     const [currentCaptureName, setCurrentCaptureName] = useState("");
     const objectPointTimes = useRef<Array<Array<Array<number>>>>([]);
     const imagePoints = useRef<Array<Array<number>>>([])
-    const [isRecording, setIsRecording] = useState(false);
+
 
     useEffect(() => {
         const record = (data) => {
@@ -40,20 +42,20 @@ export default function Capture({mocapMode, objectPoints, objectPointErrors, las
 
     const downloadZipFile = useCallback(() => {
         createZipFile(
-            currentCaptureName, 
-            objectPointTimes.current, 
-            objectPoints.current, 
-            objectPointErrors.current, 
+            currentCaptureName,
+            objectPointTimes.current,
+            objectPoints.current,
+            objectPointErrors.current,
             imagePoints.current
         )
     }, [currentCaptureName])
 
     const stopRecording = useCallback(() => {
         createZipFile(
-            currentCaptureName, 
-            objectPointTimes.current, 
-            objectPoints.current, 
-            objectPointErrors.current, 
+            currentCaptureName,
+            objectPointTimes.current,
+            objectPoints.current,
+            objectPointErrors.current,
             imagePoints.current
         )
         setIsRecording(false)
@@ -72,47 +74,47 @@ export default function Capture({mocapMode, objectPoints, objectPointErrors, las
             </Row>
             <Row className="mt-2">
                 <Col>
-            <InfoTooltip disabled={canRecord || isRecording} message="Enable triangulation and add a recording name">
-                <Button
-                    size='sm'
-                    className="mr-2"
-                    variant="outline-primary"
-                    disabled={!canRecord || isRecording}
-                    onClick={() => {
-                        objectPoints.current = []
-                        objectPointTimes.current = [];
-                        imagePoints.current = [];
-                        objectPointErrors.current = [];
-                        setIsRecording(true);
-                    }}>
-                    {isRecording ? "Recording..." : "Start recording"}
-                </Button>
-            </InfoTooltip>
-            {isRecording && 
-                <>
-                    <Button
-                        size='sm'
-                        className="mr-2"
-                        variant="outline-danger"
-                        disabled={!canRecord}
-                        onClick={stopRecording}>
-                        Stop
-                    </Button>
-                    {objectPoints.current.length} samples captured
-                </>
-            }
-            {!isRecording && objectPoints.current.length > 0 && 
-                <>
-                    <Button
-                        size='sm'
-                        className="mr-2"
-                        variant="outline-danger"
-                        onClick={downloadZipFile}>
-                        Download last recording
-                    </Button>
-                </>
-            }
-            </Col>
+                    <InfoTooltip disabled={canRecord || isRecording} message="Enable triangulation and add a recording name">
+                        <Button
+                            size='sm'
+                            className="mr-2"
+                            variant="outline-primary"
+                            disabled={!canRecord || isRecording}
+                            onClick={() => {
+                                objectPoints.current = []
+                                objectPointTimes.current = [];
+                                imagePoints.current = [];
+                                objectPointErrors.current = [];
+                                setIsRecording(true);
+                            }}>
+                            {isRecording ? "Recording..." : "Start recording"}
+                        </Button>
+                    </InfoTooltip>
+                    {isRecording &&
+                        <>
+                            <Button
+                                size='sm'
+                                className="mr-2"
+                                variant="outline-danger"
+                                disabled={!canRecord}
+                                onClick={stopRecording}>
+                                Stop
+                            </Button>
+                            {objectPoints.current.length} samples captured
+                        </>
+                    }
+                    {!isRecording && objectPoints.current.length > 0 &&
+                        <>
+                            <Button
+                                size='sm'
+                                className="mr-2"
+                                variant="outline-danger"
+                                onClick={downloadZipFile}>
+                                Download last recording
+                            </Button>
+                        </>
+                    }
+                </Col>
             </Row>
         </Container>
     )

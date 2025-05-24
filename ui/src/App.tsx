@@ -15,6 +15,7 @@ import Capture from './components/Capture';
 import Logo from './components/Logo';
 import ModeControlBar from './components/ModeControlBar';
 import useSocketListener from './hooks/useSocketListener';
+import Playback from './components/Playback';
 
 export const LS_POSE_KEY = "CAMERA_POSE";
 export const LS_WORLD_KEY = "WORLD_MATRIX";
@@ -23,6 +24,7 @@ export default function App() {
   const [mocapMode, setMocapMode] = useState(Modes.ImageProcessing);
   const [hasCameraPose, setHasCameraPose] = useState(false);
   const [hasToWorldCoordsMatrix, setHasToWorldMatrix] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [parsedCapturedPointsForPose, setParsedCapturedPointsForPose] = useState<Array<Array<Array<number>>>>([]);
 
 
@@ -100,7 +102,7 @@ export default function App() {
         <Col>
             <Tabs
               defaultActiveKey="cameraView"
-              id="uncontrolled-tab-example"
+              id="top-tab-set"
             > 
               <Tab eventKey="cameraView" title="🎥 Camera Feed">
                 <CameraView
@@ -122,10 +124,10 @@ export default function App() {
           <div style={{height: "30px"}}></div>
             <Tabs
               defaultActiveKey="capture"
-              id="uncontrolled-tab-example"
+              id="bottom-tab-set"
             > 
               <Tab eventKey="capture" title="⏺ Capture">
-                  <Capture mocapMode={mocapMode} objectPoints={objectPoints} objectPointErrors={objectPointErrors} lastObjectPointTimestamp={lastObjectPointTimestamp} />
+                  <Capture mocapMode={mocapMode} objectPoints={objectPoints} objectPointErrors={objectPointErrors} lastObjectPointTimestamp={lastObjectPointTimestamp} isRecording={isRecording} setIsRecording={setIsRecording} />
               </Tab>
               <Tab eventKey="configure" title="⚙️ Configure">
                 <Configure 
@@ -138,6 +140,11 @@ export default function App() {
                   setToWorldCoordsMatrix={setToWorldCoordsMatrix}
                   setParsedCapturedPointsForPose={setParsedCapturedPointsForPose}
                   setLastObjectPointTimestamp={setLastObjectPointTimestamp}
+                />
+              </Tab>
+              <Tab eventKey="replay" title="▶️ Playback">
+                <Playback 
+                  isRecording={isRecording}
                 />
               </Tab>
             </Tabs>
