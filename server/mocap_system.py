@@ -47,6 +47,7 @@ Transitions = {
 class MocapSystem:
     def __init__(self):
         self.camera_poses = None
+        self.cameras = None
         self.projection_matrices = None
         self.to_world_coords_matrix = None
         self.capture_mode = Modes.Initializing
@@ -84,8 +85,8 @@ class MocapSystem:
             "mode": self.capture_mode, 
             "camera_poses": self.camera_poses,
             "to_world_coords_matrix": self.to_world_coords_matrix,
-            "exposure": self.cameras.exposure,
-            "gain": self.cameras.gain
+            "exposure": self.cameras.exposure if self.cameras else 0,
+            "gain": self.cameras.gain if self.cameras else 0
         }
 
     def set_camera_poses(self, poses):
