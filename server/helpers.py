@@ -1,4 +1,5 @@
 import numpy as np
+import json
 from scipy import linalg, optimize
 import cv2 as cv
 from scipy.spatial.transform import Rotation
@@ -7,6 +8,11 @@ import numpy as np
 from settings import intrinsic_matrices
 from sfm import fundamental_from_projections 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 def calculate_reprojection_errors(image_points, object_points, camera_poses):
     errors = np.array([])

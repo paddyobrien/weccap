@@ -10,3 +10,10 @@
 - Expose intrinsics to ui
 - Show file saving progress after record finishes
 - Investigate storing data in sqlite
+
+- Add ability to run pose estimation from input file
+    
+
+- Add ability to re-run triangulation
+
+- emit pose and to world coords matrix in test output

@@ -1,4 +1,5 @@
 import time
+import json
 import cv2 as cv
 import numpy as np
 from scipy import linalg
@@ -15,9 +16,9 @@ from helpers import (
     camera_poses_to_serializable,
     calculate_reprojection_errors,
     bundle_adjustment,
-    bundle_adjustment,
     triangulate_points,
-    camera_pose_to_internal
+    camera_pose_to_internal,
+    NumpyEncoder
 )
 
 app = Flask(__name__)
@@ -65,6 +66,29 @@ def camera_state():
     mocapSystem = MocapSystem.instance()
 
     return mocapSystem.state()
+
+@app.route("/api/bundle_adjustment", methods=["POST"])
+def bundle_adjustment_post():
+    data = request.json
+
+    image_points = np.array(data["imagePoints"])
+    camera_pose = camera_pose_to_internal(data["cameraPose"])
+    # camera_pose = bundle_adjustment(image_points, camera_pose)
+
+    object_points = triangulate_points(image_points, camera_pose)
+    error = np.mean(
+        calculate_reprojection_errors(image_points, object_points, camera_pose)
+    )
+    print(error) 
+    # Take an array of image points, generate a new camera pose from it
+    # if the re-projection error is good enough
+    # run the points through triangulation and emit new object points
+    return json.dumps({
+        "imagePoints": image_points,
+        "cameraPose": camera_pose,
+        "error": error
+    }, cls=NumpyEncoder)
+
 
 @socketio.on("acquire-floor")
 def acquire_floor(data):

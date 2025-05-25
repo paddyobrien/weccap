@@ -145,6 +145,7 @@ export default function App() {
               <Tab eventKey="replay" title="▶️ Playback">
                 <Playback 
                   isRecording={isRecording}
+                  cameraPoses={cameraPoses}
                 />
               </Tab>
             </Tabs>
