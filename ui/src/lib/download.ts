@@ -16,6 +16,10 @@ function createJSONL(data: [][], times: []) {
     return new Blob([lines.join("\n")], { type: 'text/plain' });
 }
 
+function createJSON(data: any) {
+    return new Blob([JSON.stringify(data)], { type: 'text/plain' });
+}
+
 function saveAs(blob, name) {
     const link = document.createElement('a');
     link.style.display = 'none';
@@ -28,8 +32,10 @@ function saveAs(blob, name) {
     link.click();
 }
 
-export function createZipFile(captureName, times, objectPoints, errors, imagePoints) {
+export function createZipFile(captureName, times, objectPoints, errors, imagePoints, cameraPoses, toWorldCoordsMatrix) {
     const zip = new JSZip();
+    zip.file(`${captureName}/camera_poses.json`, createJSON(cameraPoses));
+    zip.file(`${captureName}/world_matrix.json`, createJSON(toWorldCoordsMatrix));
     zip.file(`${captureName}/object_points.csv`, createCSV(objectPoints, times));
     zip.file(`${captureName}/object_errors.csv`, createCSV(errors, times));
     zip.file(`${captureName}/image_points.jsonl`, createJSONL(imagePoints, times));

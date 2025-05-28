@@ -127,7 +127,16 @@ export default function App() {
               id="bottom-tab-set"
             > 
               <Tab eventKey="capture" title="⏺ Capture">
-                  <Capture mocapMode={mocapMode} objectPoints={objectPoints} objectPointErrors={objectPointErrors} lastObjectPointTimestamp={lastObjectPointTimestamp} isRecording={isRecording} setIsRecording={setIsRecording} />
+                  <Capture
+                    cameraPoses={cameraPoses} 
+                    toWorldCoordsMatrix={toWorldCoordsMatrix}
+                    mocapMode={mocapMode}
+                    objectPoints={objectPoints}
+                    objectPointErrors={objectPointErrors}
+                    lastObjectPointTimestamp={lastObjectPointTimestamp}
+                    isRecording={isRecording}
+                    setIsRecording={setIsRecording}
+                  />
               </Tab>
               <Tab eventKey="configure" title="⚙️ Configure">
                 <Configure 

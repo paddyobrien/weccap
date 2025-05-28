@@ -8,6 +8,8 @@ import InfoTooltip from "./InfoTooltip";
 import { createZipFile } from "../lib/download";
 
 interface Props {
+    cameraPoses: any,
+    toWorldCoordsMatrix: any,
     mocapMode: Modes,
     objectPoints: MutableRefObject<number[][][]>
     objectPointErrors: any,
@@ -17,7 +19,7 @@ interface Props {
 }
 
 
-export default function Capture({ mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
+export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
     const [currentCaptureName, setCurrentCaptureName] = useState("");
     const objectPointTimes = useRef<Array<Array<Array<number>>>>([]);
     const imagePoints = useRef<Array<Array<number>>>([])
@@ -46,7 +48,9 @@ export default function Capture({ mocapMode, objectPoints, objectPointErrors, la
             objectPointTimes.current,
             objectPoints.current,
             objectPointErrors.current,
-            imagePoints.current
+            imagePoints.current,
+            cameraPoses,
+            toWorldCoordsMatrix,
         )
     }, [currentCaptureName])
 
@@ -56,7 +60,9 @@ export default function Capture({ mocapMode, objectPoints, objectPointErrors, la
             objectPointTimes.current,
             objectPoints.current,
             objectPointErrors.current,
-            imagePoints.current
+            imagePoints.current,
+            cameraPoses,
+            toWorldCoordsMatrix,
         )
         setIsRecording(false)
     }, [currentCaptureName, isRecording])

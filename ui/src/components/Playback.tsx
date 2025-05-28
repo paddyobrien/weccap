@@ -115,7 +115,7 @@ export default function Playback({ isRecording, cameraPoses }: Props) {
 
     const calculateBundleAdjustment = useCallback(async () => {
         const points = []
-        filteredImagePoints.forEach((timeStep, index) => {
+        filteredImagePoints.forEach((timeStep) => {
             if (timeStep[0][0] && timeStep[1][0] && timeStep[2][0] && timeStep[3][0])
                 points.push([timeStep[0][0], timeStep[1][0], timeStep[2][0], timeStep[3][0]])
             if (timeStep[0][1] && timeStep[1][1] && timeStep[2][1] && timeStep[3][1])
