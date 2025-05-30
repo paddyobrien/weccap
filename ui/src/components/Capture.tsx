@@ -5,7 +5,7 @@ import { socket } from "../lib/socket";
 import SmallHeader from "./SmallHeader";
 import InfoTooltip from "./InfoTooltip";
 
-import { createZipFile } from "../lib/download";
+import { createZipFile, triggerDownload } from "../lib/download";
 
 interface Props {
     cameraPoses: any,
@@ -21,6 +21,7 @@ interface Props {
 
 export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
     const [currentCaptureName, setCurrentCaptureName] = useState("");
+    const [recordVideo, setRecordVideo] = useState(false);
     const objectPointTimes = useRef<Array<Array<Array<number>>>>([]);
     const imagePoints = useRef<Array<Array<number>>>([])
 
@@ -52,7 +53,7 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
             cameraPoses,
             toWorldCoordsMatrix,
         )
-    }, [currentCaptureName])
+    }, [currentCaptureName, cameraPoses, toWorldCoordsMatrix])
 
     const stopRecording = useCallback(() => {
         createZipFile(
@@ -65,7 +66,9 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
             toWorldCoordsMatrix,
         )
         setIsRecording(false)
-    }, [currentCaptureName, isRecording])
+        socket.emit("stop_recording")
+
+    }, [currentCaptureName, cameraPoses, toWorldCoordsMatrix])
 
     return (
         <Container fluid={true} className="pb-2 shadow-md container-card">
@@ -75,6 +78,16 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
                     <Form.Control
                         value={currentCaptureName}
                         onChange={(event) => setCurrentCaptureName(event.target.value)}
+                        width={"50%"}
+                        className="mb-2"
+                    />
+                    <Form.Check
+                        type="checkbox"
+                        label="Record video (reduces framerate)"
+                        checked={recordVideo}
+                        id="recordVideoCB"
+                        onChange={() => setRecordVideo(!recordVideo)}
+                        className="p-6"
                     />
                 </Col>
             </Row>
@@ -91,10 +104,14 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
                                 objectPointTimes.current = [];
                                 imagePoints.current = [];
                                 objectPointErrors.current = [];
+                                if (recordVideo) {
+                                    socket.emit("start_recording", {name: currentCaptureName})
+                                }
                                 setIsRecording(true);
                             }}>
                             {isRecording ? "Recording..." : "Start recording"}
                         </Button>
+                        
                     </InfoTooltip>
                     {isRecording &&
                         <>

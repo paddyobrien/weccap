@@ -30,6 +30,7 @@ function saveAs(blob, name) {
     link.href = URL.createObjectURL(blob);
     link.download = `${name}.zip`;
     link.click();
+    document.body.removeChild(link)
 }
 
 export function createZipFile(captureName, times, objectPoints, errors, imagePoints, cameraPoses, toWorldCoordsMatrix) {

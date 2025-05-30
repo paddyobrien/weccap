@@ -25,6 +25,7 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# HTTP Routes
 @app.route("/api/camera-stream/<random>")
 def camera_stream(random):
     camera = request.args.get("camera")
@@ -89,7 +90,7 @@ def bundle_adjustment_post():
         "error": error
     }, cls=NumpyEncoder)
 
-
+# Websocket Messages
 @socketio.on("acquire-floor")
 def acquire_floor(data):
     mocapSystem = MocapSystem.instance()
@@ -318,7 +319,19 @@ def determine_scale(data):
     mocapSystem.set_camera_poses(camera_poses)
     socketio.emit("scaled", {"scale_factor": scale_factor, "camera_poses": camera_poses})
 
+@socketio.on("start_recording")
+def start_recording(data):
+    name = data["name"]
+    mocapSystem = MocapSystem.instance()
+    mocapSystem.start_recording(name)
 
+@socketio.on("stop_recording")
+def stop_recording():
+    # Stop the current stream
+    mocapSystem = MocapSystem.instance()
+    mocapSystem.stop_recording()
+
+# Start the server
 if __name__ == "__main__":
     mocapSystem = MocapSystem.instance()
     try:

@@ -3,7 +3,7 @@ import uuid
 import numpy as np
 import cv2 as cv
 from settings import intrinsic_matrices, distortion_coefs
-from pseyepy import Camera, cam_count
+from pseyepy import Camera, cam_count, Stream
 from Singleton import Singleton
 from KalmanFilter import KalmanFilter
 from helpers import (
@@ -48,6 +48,7 @@ class MocapSystem:
     def __init__(self):
         self.camera_poses = None
         self.cameras = None
+        self.stream = None
         self.projection_matrices = None
         self.to_world_coords_matrix = None
         self.capture_mode = Modes.Initializing
@@ -75,6 +76,14 @@ class MocapSystem:
 
     def end(self):
         self.cameras.end()
+
+    def start_recording(self, name):
+        print("starting record")
+        self.stream = Stream(self.cameras, file_name=f'videos/{name}.avi', display=True)
+
+    def stop_recording(self):
+        if self.stream:
+            self.stream.end()
 
     def set_socketio(self, socketio):
         self.socketio = socketio
