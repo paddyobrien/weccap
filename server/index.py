@@ -167,7 +167,12 @@ def set_origin(data):
 def change_camera_settings(data):
     mocapSystem = MocapSystem.instance()
 
-    mocapSystem.edit_settings(data["exposure"], data["gain"])
+    mocapSystem.edit_settings(data["exposure"], data["gain"], data["sharpness"], data["contrast"])
+
+@socketio.on("update-point-capture-settings")
+def change_point_settings(data):
+    mocapSystem = MocapSystem.instance()
+    mocapSystem.contour_threshold = data["contourThreshold"]
 
 @socketio.on("calculate-bundle-adjustment")
 def calculate_bundle_adjustment(data):
@@ -312,6 +317,8 @@ def determine_scale(data):
     if len(observed_distances) == 0:
         socketio.emit("scale-error", {"message": "Did not find valid points"})
         return    
+    print("==")
+    print(observed_distances)
     scale_factor = real_distance / np.mean(observed_distances)
     
     for i in range(0, len(camera_poses)):

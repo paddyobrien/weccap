@@ -176,7 +176,7 @@ def DLT(Ps, image_points):
 
     return object_point
 
-def find_point_correspondance_and_object_points(image_points, camera_poses, frames):
+def find_point_correspondance_and_object_points(image_points, camera_poses, frames=None):
     for image_points_i in image_points:
         try:
             image_points_i.remove([None, None])
@@ -190,7 +190,7 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
 
     root_image_points = [{"camera": 0, "point": point} for point in image_points[0]]
 
-    for i in range(1, len(frames)):
+    for i in range(1, len(camera_poses)):
         epipolar_lines = []
         for root_image_point in root_image_points:
             F = fundamental_from_projections(Ps[root_image_point["camera"]], Ps[i])
@@ -198,7 +198,8 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
                 np.array([root_image_point["point"]], dtype=np.float32), 1, F
             )
             epipolar_lines.append(line[0, 0].tolist())
-            frames[i] = drawlines(frames[i], line[0])
+            if frames:
+                frames[i] = drawlines(frames[i], line[0])
 
         not_closest_match_image_points = np.array(image_points[i])
         points = np.array(image_points[i])

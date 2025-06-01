@@ -54,6 +54,8 @@ class MocapSystem:
         self.capture_mode = Modes.Initializing
         self.num_cameras = 0
 
+        self.contour_threshold = 0.4
+
         self.kalman_filter = KalmanFilter(1)
         self.socketio = None
         self.initialize_cameras(DEFAULT_FPS)
@@ -116,9 +118,11 @@ class MocapSystem:
             p.append(P)
         self.projection_matrices = p
 
-    def edit_settings(self, exposure, gain):
+    def edit_settings(self, exposure, gain, sharpness, contrast):
         self.cameras.exposure = [exposure] * self.num_cameras
         self.cameras.gain = [gain] * self.num_cameras
+        self.cameras.sharpness = [sharpness] * self.num_cameras
+        self.cameras.contrast = [contrast] * self.num_cameras
 
     def _camera_read(self):
         frames, timestamps = self.cameras.read(squeeze=False)
@@ -170,8 +174,8 @@ class MocapSystem:
             # frames[i] = cv.medianBlur(frames[i],9)
             # frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
             
-            frames[i] = cv.filter2D(frames[i], -1, self.kernel)
-            frames[i] = cv.cvtColor(frames[i], cv.COLOR_RGB2BGR)
+            # frames[i] = cv.filter2D(frames[i], -1, self.kernel)
+            # frames[i] = cv.cvtColor(frames[i], cv.COLOR_RGB2BGR)
         return frames
 
     def _point_capture(self, frames):
@@ -184,8 +188,8 @@ class MocapSystem:
     def _find_dot(self, img):
         # img = cv.GaussianBlur(img,(5,5),0)
         grey = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-        grey = cv.threshold(grey, 255 * 0.4, 255, cv.THRESH_BINARY)[1]
-        contours, _ = cv.findContours(grey, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        grey = cv.threshold(grey, 255 * self.contour_threshold, 255, cv.THRESH_BINARY)[1]
+        contours, _ = cv.findContours(grey, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
         img = cv.drawContours(img, contours, -1, (0, 255, 0), 1)
 
         image_points = []
