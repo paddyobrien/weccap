@@ -24,11 +24,11 @@ export default function CameraSettings() {
                 <Form onChange={updateCameraSettings} as={Col} className='ps-3'>
                     <Form.Group className="mb-1">
                         <Form.Label column>Exposure: {exposure}</Form.Label>
-                        <Form.Range value={exposure} onChange={(event) => setExposure(parseFloat(event.target.value))} />
+                        <Form.Range value={exposure} min={0} max={255} onChange={(event) => setExposure(parseFloat(event.target.value))} />
                     </Form.Group>
                     <Form.Group className="mb-1">
                         <Form.Label>Gain: {gain}</Form.Label>
-                        <Form.Range value={gain} onChange={(event) => setGain(parseFloat(event.target.value))} />
+                        <Form.Range value={gain} min={0} max={63} onChange={(event) => setGain(parseFloat(event.target.value))} />
                     </Form.Group>
                 </Form>
             </div>
