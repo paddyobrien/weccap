@@ -56,7 +56,16 @@ class MocapSystem:
 
         self.kalman_filter = KalmanFilter(1)
         self.socketio = None
-        self.initialize_cameras(DEFAULT_FPS)    
+        self.initialize_cameras(DEFAULT_FPS)
+        self.kernel = np.array(
+                [
+                    [-2, -1, -1, -1, -2],
+                    [-1,  1,  3,  1, -1],
+                    [-1,  3,  4,  3, -1],
+                    [-1,  1,  3,  1, -1],
+                    [-2, -1, -1, -1, -2],
+                ]
+            )    
 
     def initialize_cameras(self, target_fps):
         print("\nInitializing cameras")
@@ -160,16 +169,8 @@ class MocapSystem:
             frames[i] = cv.undistort(frames[i], intrinsic_matrices[i], distortion_coefs[i])
             # frames[i] = cv.medianBlur(frames[i],9)
             # frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
-            kernel = np.array(
-                [
-                    [-2, -1, -1, -1, -2],
-                    [-1,  1,  3,  1, -1],
-                    [-1,  3,  4,  3, -1],
-                    [-1,  1,  3,  1, -1],
-                    [-2, -1, -1, -1, -2],
-                ]
-            )
-            frames[i] = cv.filter2D(frames[i], -1, kernel)
+            
+            frames[i] = cv.filter2D(frames[i], -1, self.kernel)
             frames[i] = cv.cvtColor(frames[i], cv.COLOR_RGB2BGR)
         return frames
 
@@ -183,7 +184,7 @@ class MocapSystem:
     def _find_dot(self, img):
         # img = cv.GaussianBlur(img,(5,5),0)
         grey = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-        grey = cv.threshold(grey, 255 * 0.2, 255, cv.THRESH_BINARY)[1]
+        grey = cv.threshold(grey, 255 * 0.4, 255, cv.THRESH_BINARY)[1]
         contours, _ = cv.findContours(grey, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         img = cv.drawContours(img, contours, -1, (0, 255, 0), 1)
 
@@ -209,7 +210,6 @@ class MocapSystem:
             image_points = [[None, None]]
 
         return img, image_points
-
 
     def _triangulation(self, frames, image_points):
         errors, object_points, frames = (
