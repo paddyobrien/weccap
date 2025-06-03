@@ -136,7 +136,6 @@ def bundle_adjustment2(image_points, camera_poses):
 
     return camera_poses
 
-
 def triangulate_point(image_points, camera_poses):
     image_points = np.array(image_points)
     none_indicies = np.where(np.all(image_points == None, axis=1))[0]
@@ -151,7 +150,6 @@ def triangulate_point(image_points, camera_poses):
     object_point = DLT(Ps, image_points)
 
     return object_point
-
 
 def triangulate_points(image_points, camera_poses):
     object_points = []
@@ -182,7 +180,6 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
             image_points_i.remove([None, None])
         except:
             pass
-
     # [object_points, possible image_point groups, image_point from camera]
     correspondances = [[[i]] for i in image_points[0]]
 
@@ -213,11 +210,6 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
 
             possible_matches = points[distances_to_line < 5].copy()
 
-            # Commenting out this code produces more points, but more garbage points too
-            # delete closest match from future consideration
-            # if len(points) != 0:
-            #     points = np.delete(points, np.argmin(distances_to_line), axis=0)
-
             # sort possible matches from smallest to largest
             distances_to_line = distances_to_line[distances_to_line < 5]
             possible_matches_sorter = distances_to_line.argsort()
@@ -244,16 +236,21 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
                     new_correspondances_j += temp
                 correspondances[j] = new_correspondances_j
 
-        for not_closest_match_image_point in not_closest_match_image_points:
-            root_image_points.append(
-                {"camera": i, "point": not_closest_match_image_point}
-            )
-            temp = [[[None, None]] * i]
-            temp[0].append(not_closest_match_image_point.tolist())
-            correspondances.append(temp)
+        # This block of code attempts to solve the problem where points are lost if they are not seen in the "root" camera
+        # However it causes point to be tracked by multiple epipolar lines, which causes weird spurious matching
+        # If instead we simplify the problem and say all points are always visible in camera 1 then this can be removed
+        # So it has been commented out for now. 
+        # for not_closest_match_image_point in not_closest_match_image_points:
+        #     root_image_points.append(
+        #         {"camera": i, "point": not_closest_match_image_point}
+        #     )
+        #     temp = [[[None, None]] * i]
+        #     temp[0].append(not_closest_match_image_point.tolist())
+        #     correspondances.append(temp)
 
     object_points = []
     errors = []
+
     for image_points in correspondances:
         object_points_i = triangulate_points(image_points, camera_poses)
 
@@ -268,7 +265,6 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
         errors.append(np.min(errors_i))
 
     return np.array(errors), np.array(object_points), frames
-
 
 def locate_objects(object_points, errors):
     dist = 0.131
@@ -375,12 +371,10 @@ def locate_objects(object_points, errors):
 
     return objects
 
-
 def drawlines(img1, lines):
-    r, c, _ = img1.shape
+    _, c, _ = img1.shape
+    color = (255,255,255)
     for r in lines:
-        color = tuple(np.random.randint(0, 255, 3).tolist())
-        color = (255,255,255)
         x0, y0 = map(int, [0, -r[2] / r[1]])
         x1, y1 = map(int, [c, -(r[2] + r[0] * c) / r[1]])
         img1 = cv.line(img1, (x0, y0), (x1, y1), color, 1)
@@ -409,9 +403,6 @@ def camera_poses_to_projection_matrices(camera_poses):
         P = intrinsic_matrices[i] @ RT
         Ps.append(P)
     return Ps
-
-def cartesian_product(x, y):
-    return np.array([[x0, y0] for x0 in x for y0 in y])
 
 def make_square(img):
     x, y, _ = img.shape
