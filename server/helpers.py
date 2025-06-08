@@ -58,7 +58,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 # https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Triggs00.pdf
 # original bundle adjustment, specifies focal length as an adjustment
 # which seems like a mistake since its not used in the residual function
-def bundle_adjustment(image_points, camera_poses):
+def bundle_adjustment(image_points, camera_poses, projection_matrices):
 
     def params_to_camera_poses(params):
         focal_distances = []
@@ -80,7 +80,7 @@ def bundle_adjustment(image_points, camera_poses):
 
     def residual_function(params):
         camera_poses, focal_distances = params_to_camera_poses(params)
-        object_points = triangulate_points(image_points, camera_poses)
+        object_points = triangulate_points(image_points, projection_matrices)
         errors = calculate_reprojection_errors(
             image_points, object_points, camera_poses
         )
@@ -105,7 +105,7 @@ def bundle_adjustment(image_points, camera_poses):
 # a much dumber bundle adjustment that just does rotation adjustments
 # hope is that this improves accuracy by assuming distances can be pretty well
 # calibrated manually
-def bundle_adjustment2(image_points, camera_poses):
+def bundle_adjustment2(image_points, camera_poses, projection_matrices):
 
     def params_to_camera_poses(params):
         for i, _ in enumerate(camera_poses):
@@ -119,7 +119,8 @@ def bundle_adjustment2(image_points, camera_poses):
 
     def residual_function(params):
         camera_poses = params_to_camera_poses(params)
-        object_points = triangulate_points(image_points, camera_poses)
+        projection_matrices = camera_poses_to_projection_matrices(camera_poses)
+        object_points = triangulate_points(image_points, projection_matrices)
         errors = calculate_reprojection_errors(
             image_points, object_points, camera_poses
         )
@@ -136,25 +137,24 @@ def bundle_adjustment2(image_points, camera_poses):
 
     return camera_poses
 
-def triangulate_point(image_points, camera_poses):
+def triangulate_point(image_points, projection_matrices):
     image_points = np.array(image_points)
+    Ps = np.array(projection_matrices)
     none_indicies = np.where(np.all(image_points == None, axis=1))[0]
     image_points = np.delete(image_points, none_indicies, axis=0)
-    camera_poses = np.delete(camera_poses, none_indicies, axis=0)
+    Ps = np.delete(Ps, none_indicies, axis=0)
 
     if len(image_points) <= 1:
         return [None, None, None]
-
-    Ps = camera_poses_to_projection_matrices(camera_poses)
 
     object_point = DLT(Ps, image_points)
 
     return object_point
 
-def triangulate_points(image_points, camera_poses):
+def triangulate_points(image_points, projection_matrices):
     object_points = []
     for image_points_i in image_points:
-        object_point = triangulate_point(image_points_i, camera_poses)
+        object_point = triangulate_point(image_points_i, projection_matrices)
         object_points.append(object_point)
 
     return np.array(object_points)
@@ -174,7 +174,7 @@ def DLT(Ps, image_points):
 
     return object_point
 
-def find_point_correspondance_and_object_points(image_points, camera_poses, frames=None):
+def find_point_correspondance_and_object_points(image_points, camera_poses, projection_matrices, frames=None):
     for image_points_i in image_points:
         try:
             image_points_i.remove([None, None])
@@ -183,7 +183,7 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
     # [object_points, possible image_point groups, image_point from camera]
     correspondances = [[[i]] for i in image_points[0]]
 
-    Ps = camera_poses_to_projection_matrices(camera_poses)
+    Ps = projection_matrices
 
     root_image_points = [{"camera": 0, "point": point} for point in image_points[0]]
 
@@ -252,7 +252,7 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, fram
     errors = []
 
     for image_points in correspondances:
-        object_points_i = triangulate_points(image_points, camera_poses)
+        object_points_i = triangulate_points(image_points, Ps)
 
         if np.all(object_points_i == None):
             continue
@@ -280,9 +280,6 @@ def locate_objects(object_points, errors):
             distance_matrix[i, j] = np.sqrt(
                 np.sum((object_points[i] - object_points[j]) ** 2)
             )
-    print("----")
-    print(distance_matrix)
-    print("----")
     for i in range(0, object_points.shape[0]):
         if i in already_matched_points:
             continue

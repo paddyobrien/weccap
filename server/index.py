@@ -14,10 +14,11 @@ from settings import intrinsic_matrices
 from mocap_system import MocapSystem
 from helpers import (
     camera_poses_to_serializable,
+    camera_pose_to_internal,
+    camera_poses_to_projection_matrices,
     calculate_reprojection_errors,
     bundle_adjustment,
     triangulate_points,
-    camera_pose_to_internal,
     NumpyEncoder
 )
 
@@ -74,9 +75,10 @@ def bundle_adjustment_post():
 
     image_points = np.array(data["imagePoints"])
     camera_pose = camera_pose_to_internal(data["cameraPose"])
-    # camera_pose = bundle_adjustment(image_points, camera_pose)
+    projection_matrices = camera_poses_to_projection_matrices(camera_pose)
+    # camera_pose = bundle_adjustment(image_points, camera_pose, projection_matrices)
 
-    object_points = triangulate_points(image_points, camera_pose)
+    object_points = triangulate_points(image_points, projection_matrices)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, camera_pose)
     )
@@ -179,9 +181,9 @@ def calculate_bundle_adjustment(data):
     mocapSystem = MocapSystem.instance()
     image_points = np.array(data["cameraPoints"])
     camera_poses = camera_pose_to_internal(data["cameraPoses"])
-    camera_poses = bundle_adjustment(image_points, camera_poses)
-
-    object_points = triangulate_points(image_points, camera_poses)
+    projection_matrices = camera_poses_to_projection_matrices(camera_pose)
+    camera_poses = bundle_adjustment(image_points, camera_poses, projection_matrices)
+    object_points = triangulate_points(image_points, projection_matrices)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, camera_poses)
     )
@@ -241,9 +243,9 @@ def calculate_camera_pose(data):
                         np.expand_dims(camera2_image_points, axis=1),
                     ]
                 ),
-                np.concatenate(
+                camera_poses_to_projection_matrices(np.concatenate(
                     [[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]]
-                ),
+                )),
             )
             object_points_camera_coordinate_frame = np.array(
                 [possible_Rs[i].T @ object_point for object_point in object_points]
@@ -263,9 +265,10 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    camera_poses = bundle_adjustment(image_points, camera_poses)
-
-    object_points = triangulate_points(image_points, camera_poses)
+    projection_matrics = camera_poses_to_projection_matrices(camera_poses)
+    camera_poses = bundle_adjustment(image_points, camera_poses, projection_matrices)
+    
+    object_points = triangulate_points(image_points, projection_matrics)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, camera_poses)
     )

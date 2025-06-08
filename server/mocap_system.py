@@ -10,6 +10,7 @@ from helpers import (
     find_point_correspondance_and_object_points,
     locate_objects,
     make_square,
+    camera_poses_to_projection_matrices,
 )
 
 DEFAULT_FPS = 125
@@ -111,12 +112,7 @@ class MocapSystem:
 
     def set_camera_poses(self, poses):
         self.camera_poses = poses
-        p = []
-        for i, camera_pose in enumerate(self.camera_poses):
-            RT = np.c_[camera_pose["R"], camera_pose["t"]]
-            P = intrinsic_matrices[i] @ RT
-            p.append(P)
-        self.projection_matrices = p
+        self.projection_matrices = camera_poses_to_projection_matrices(poses)
 
     def edit_settings(self, exposure, gain, sharpness, contrast):
         self.cameras.exposure = [exposure] * self.num_cameras
@@ -218,7 +214,7 @@ class MocapSystem:
     def _triangulation(self, frames, image_points):
         errors, object_points, frames = (
             find_point_correspondance_and_object_points(
-                image_points, self.camera_poses, frames
+                image_points, self.camera_poses, self.projection_matrices, frames
             )
         )
         # convert to world coordinates
