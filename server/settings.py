@@ -1,5 +1,7 @@
 import numpy as np
 
+# Wide angle camera intrinsics
+# These should be moved to a config file that gets supplied at run time along with pose etc
 
 intrinsic_cam1 = np.array([
     [269.60149458,   0.        , 161.17399446],

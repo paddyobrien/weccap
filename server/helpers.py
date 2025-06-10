@@ -4,7 +4,6 @@ from scipy import linalg, optimize
 import cv2 as cv
 from scipy.spatial.transform import Rotation
 import copy
-import numpy as np
 from settings import intrinsic_matrices
 from sfm import fundamental_from_projections 
 
@@ -168,8 +167,15 @@ def DLT(Ps, image_points):
         A.append(P[0, :] - image_point[0] * P[2, :])
 
     A = np.array(A).reshape((len(Ps) * 2, 4))
+    print("AAA")
+    print(A)
+    print("AT")
+    print(A.transpose())
     B = A.transpose() @ A
-    U, s, Vh = linalg.svd(B, full_matrices=False)
+    print("BBB")
+    print(B.shape)
+    _, _, Vh = linalg.svd(B, full_matrices=False)
+
     object_point = Vh[3, 0:3] / Vh[3, 3]
 
     return object_point

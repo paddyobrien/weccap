@@ -1,5 +1,8 @@
 import numpy as np
 
+# Tele camera intrinsics
+# These should be moved to a config file that gets supplied at run time along with pose etc
+
 intrinsic_cam1 = np.array([
     [394.342648876422,	0,	173.510520582010],
     [0,	395.004596733472,	97.7887276199817],
