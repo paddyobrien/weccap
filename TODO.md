@@ -1,19 +1,13 @@
 - Repeatable build
     - Decide if docker or a local setup is easier
 - Add a configuration object for intrinsics, pose etc
+    - Better config management, save and load multiple configs, export config with download!
     - Really get a better model in the backend
-    - Assign stable indexes to cameras
+- Assign stable indexes to cameras
         - USB identified not exposed would need upstream changes in pseyepy
 - Stop using socketio for request/response
-- Better config management, save and load multiple configs, export config with download!
-- Sync exposure and gain
+- Sync exposure and gain when reconnecting
 - Expose intrinsics to ui
 - Show file saving progress after record finishes
 - Investigate storing data in sqlite
-
-- Add ability to run pose estimation from input file
-    
-
 - Add ability to re-run triangulation
-
-- emit pose and to world coords matrix in test output
