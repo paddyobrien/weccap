@@ -1,6 +1,8 @@
 # WECCAP
 An optical motion capture system designed for you use in wave tank experiments. Allows for recording 3d motion capture in 6DoF at 120hz. Data can be captured and exported to a simple CSV file for further analysis. This system is designed for use with an active IR tracker target and uses Sony PSEye cameras.
 
+![weccap](https://github.com/user-attachments/assets/0842abf6-7959-4565-ba4a-3620f1d78960)
+
 # Setup
 
 ## Prerequisites
@@ -30,9 +32,5 @@ yarn run dev
 
 
 ## How to use
-### Screenshot
-![weccap](https://github.com/user-attachments/assets/0842abf6-7959-4565-ba4a-3620f1d78960)
-
-
 ## Credits
 WECCAP make heavy use of code originally by https://github.com/jyjblrd/Low-Cost-Mocap
