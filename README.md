@@ -28,9 +28,11 @@ In another terminal, start the UI. Change direction in `/ui` and run:
 yarn run dev
 ```
 
-## How to use
 
-TODO
+## How to use
+### Screenshot
+![weccap](https://github.com/user-attachments/assets/0842abf6-7959-4565-ba4a-3620f1d78960)
+
 
 ## Credits
 WECCAP make heavy use of code originally by https://github.com/jyjblrd/Low-Cost-Mocap
