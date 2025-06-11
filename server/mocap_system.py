@@ -11,7 +11,9 @@ from helpers import (
     locate_objects,
     make_square,
     camera_poses_to_projection_matrices,
+    undistort_image_points
 )
+from flags import ADVANCED_BA
 
 DEFAULT_FPS = 125
 
@@ -51,6 +53,7 @@ class MocapSystem:
         self.cameras = None
         self.stream = None
         self.projection_matrices = None
+        self.optimal_matrices = None
         self.to_world_coords_matrix = None
         self.capture_mode = Modes.Initializing
         self.num_cameras = 0
@@ -83,6 +86,12 @@ class MocapSystem:
         if self.capture_mode >= Modes.CamerasFound:
             self.num_cameras = cam_count()
             print(f"{self.num_cameras} cameras found")
+            if ADVANCED_BA == True:
+                self.optimal_matrices = []
+                dimensions = (320, 240)
+                for i in range(0, self.num_cameras):
+                    opt, _ = cv.getOptimalNewCameraMatrix(intrinsic_matrices[i], distortion_coefs[i], dimensions, 1, dimensions)
+                    self.optimal_matrices.append(opt)
         else:
             print(f"Failed to find cameras, please check connections")
 
@@ -166,10 +175,11 @@ class MocapSystem:
         for i in range(0, self.num_cameras):
             frames[i] = np.rot90(frames[i], k=0)
             frames[i] = make_square(frames[i])
-            frames[i] = cv.undistort(frames[i], intrinsic_matrices[i], distortion_coefs[i])
+            if ADVANCED_BA == False:
+                frames[i] = cv.undistort(frames[i], intrinsic_matrices[i], distortion_coefs[i])
+            # many of these things were also done in _find_dot
             # frames[i] = cv.medianBlur(frames[i],9)
             # frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
-            
             # frames[i] = cv.filter2D(frames[i], -1, self.kernel)
             # frames[i] = cv.cvtColor(frames[i], cv.COLOR_RGB2BGR)
         return frames
@@ -212,6 +222,13 @@ class MocapSystem:
         return img, image_points
 
     def _triangulation(self, frames, image_points):
+        if ADVANCED_BA == True:
+            image_points = undistort_image_points(
+                image_points,
+                self.optimal_matrices,
+                intrinsic_matrices,
+                distortion_coefs
+            )
         errors, object_points, frames = (
             find_point_correspondance_and_object_points(
                 image_points, self.camera_poses, self.projection_matrices, frames

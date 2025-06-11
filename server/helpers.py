@@ -101,40 +101,10 @@ def bundle_adjustment(image_points, camera_poses, projection_matrices):
     
     return params_to_camera_poses(res.x)[0]
 
-# a much dumber bundle adjustment that just does rotation adjustments
-# hope is that this improves accuracy by assuming distances can be pretty well
-# calibrated manually
-def bundle_adjustment2(image_points, camera_poses, projection_matrices):
 
-    def params_to_camera_poses(params):
-        for i, _ in enumerate(camera_poses):
-            start = i * 3
-            end = i * 3 + 3
-            camera_poses[i]["R"] = Rotation.as_matrix(
-                Rotation.from_rotvec(params[start:end])
-            )
-
-        return camera_poses
-
-    def residual_function(params):
-        camera_poses = params_to_camera_poses(params)
-        projection_matrices = camera_poses_to_projection_matrices(camera_poses)
-        object_points = triangulate_points(image_points, projection_matrices)
-        errors = calculate_reprojection_errors(
-            image_points, object_points, camera_poses
-        )
-        errors = errors.astype(np.float32)
-        return errors
-
-    init_params = []
-    for i, camera_pose in enumerate(camera_poses):
-        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
-        init_params = np.concatenate([init_params, rot_vec])
-    res = optimize.least_squares(
-        residual_function, init_params, verbose=2, loss="linear", xtol=1e-9, ftol=1e-9
-    )
-
-    return camera_poses
+def bundle_adjustment2(image_points, projection_matrices):
+    print("pss")
+    
 
 def triangulate_point(image_points, projection_matrices):
     image_points = np.array(image_points)
@@ -396,7 +366,13 @@ def camera_pose_to_internal(serialized_camera_poses):
 
     return serialized_camera_poses
 
-
+def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, distortion_coefs):
+    for i, image_point_set in enumerate(image_points):
+        for j, image_point in enumerate(image_point_set):
+            wrapped_point = np.array(image_point, np.float32)
+            undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[i], distortion_coefs[i], np.eye(3), optimal_matrices[i])
+            image_points[i][j] = undistorted[0][0]
+    return image_points
 # Opportunity for performance improvements here. This doesn't change
 # for a given capture but is recalculated fairly deep down the run loop
 def camera_poses_to_projection_matrices(camera_poses):
