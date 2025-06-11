@@ -4,7 +4,6 @@ from scipy import linalg, optimize
 import cv2 as cv
 from scipy.spatial.transform import Rotation
 import copy
-from settings import intrinsic_matrices
 from sfm import fundamental_from_projections 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -13,10 +12,10 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super().default(obj)
 
-def calculate_reprojection_errors(image_points, object_points, camera_poses):
+def calculate_reprojection_errors(image_points, object_points, camera_poses, intrinsic_matrices):
     errors = np.array([])
     for image_points_i, object_point in zip(image_points, object_points):
-        error = calculate_reprojection_error(image_points_i, object_point, camera_poses)
+        error = calculate_reprojection_error(image_points_i, object_point, camera_poses, intrinsic_matrices)
         if error is None:
             continue
         errors = np.concatenate([errors, [error]])
@@ -24,7 +23,7 @@ def calculate_reprojection_errors(image_points, object_points, camera_poses):
     return errors
 
 
-def calculate_reprojection_error(image_points, object_point, camera_poses):
+def calculate_reprojection_error(image_points, object_point, camera_poses, intrinsic_matrices):
     image_points = np.array(image_points)
     none_indicies = np.where(np.all(image_points == None, axis=1))[0]
     image_points = np.delete(image_points, none_indicies, axis=0)
@@ -86,11 +85,11 @@ def bundle_adjustment(image_points, camera_poses, projection_matrices):
         errors = errors.astype(np.float32)
         return errors
 
-    focal_distance = intrinsic_matrices[0][0, 0]
+    focal_distance = 1
     init_params = np.array([focal_distance])
     for i, camera_pose in enumerate(camera_poses[1:]):
         rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
-        focal_distance = intrinsic_matrices[i][0,0]
+        focal_distance = 1
         init_params = np.concatenate([init_params, [focal_distance]])
         init_params = np.concatenate([init_params, rot_vec])
         init_params = np.concatenate([init_params, np.array(camera_pose["t"]).flatten()])
@@ -102,8 +101,14 @@ def bundle_adjustment(image_points, camera_poses, projection_matrices):
     return params_to_camera_poses(res.x)[0]
 
 
-def bundle_adjustment2(image_points, projection_matrices):
-    print("pss")
+def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, poses):
+    # function to turn params back into data structures
+
+    # residual function
+
+    # build initial params
+    print("hmm")
+
     
 
 def triangulate_point(image_points, projection_matrices):
@@ -375,7 +380,7 @@ def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, d
     return image_points
 # Opportunity for performance improvements here. This doesn't change
 # for a given capture but is recalculated fairly deep down the run loop
-def camera_poses_to_projection_matrices(camera_poses):
+def camera_poses_to_projection_matrices(camera_poses, intrinsic_matrices):
     Ps = []
     for i, camera_pose in enumerate(camera_poses):
         RT = np.c_[camera_pose["R"], camera_pose["t"]]

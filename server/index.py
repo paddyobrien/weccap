@@ -10,7 +10,6 @@ from flask_socketio import SocketIO
 from flask_cors import CORS
 
 from sfm import essential_from_fundamental, motion_from_essential
-from settings import intrinsic_matrices
 from mocap_system import MocapSystem
 from helpers import (
     camera_poses_to_serializable,
@@ -75,7 +74,8 @@ def bundle_adjustment_post():
 
     image_points = np.array(data["imagePoints"])
     camera_pose = camera_pose_to_internal(data["cameraPose"])
-    projection_matrices = camera_poses_to_projection_matrices(camera_pose)
+    intrinsic_matrices = data["intrinsicMatrices"]
+    projection_matrices = camera_poses_to_projection_matrices(camera_pose, intrinsic_matrices)
     # camera_pose = bundle_adjustment(image_points, camera_pose, projection_matrices)
 
     object_points = triangulate_points(image_points, projection_matrices)
@@ -227,8 +227,8 @@ def calculate_camera_pose(data):
             return
         E = essential_from_fundamental(
             F,
-            intrinsic_matrices[camera_i],
-            intrinsic_matrices[camera_i+1]
+            mocapSystem.intrinsic_matrices[camera_i],
+            mocapSystem.intrinsic_matrices[camera_i+1]
         )
         possible_Rs, possible_ts = motion_from_essential(E)
 
@@ -265,7 +265,7 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    projection_matrics = camera_poses_to_projection_matrices(camera_poses)
+    projection_matrics = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
     camera_poses = bundle_adjustment(image_points, camera_poses, projection_matrices)
     
     object_points = triangulate_points(image_points, projection_matrics)

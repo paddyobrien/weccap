@@ -52,6 +52,8 @@ class MocapSystem:
         self.camera_poses = None
         self.cameras = None
         self.stream = None
+        self.intrinsic_matrices = intrinsic_matrices
+        self.distortion_coefs = distortion_coefs
         self.projection_matrices = None
         self.optimal_matrices = None
         self.to_world_coords_matrix = None
@@ -90,7 +92,7 @@ class MocapSystem:
                 self.optimal_matrices = []
                 dimensions = (320, 240)
                 for i in range(0, self.num_cameras):
-                    opt, _ = cv.getOptimalNewCameraMatrix(intrinsic_matrices[i], distortion_coefs[i], dimensions, 1, dimensions)
+                    opt, _ = cv.getOptimalNewCameraMatrix(self.intrinsic_matrices[i], self.distortion_coefs[i], dimensions, 1, dimensions)
                     self.optimal_matrices.append(opt)
         else:
             print(f"Failed to find cameras, please check connections")
@@ -121,7 +123,7 @@ class MocapSystem:
 
     def set_camera_poses(self, poses):
         self.camera_poses = poses
-        self.projection_matrices = camera_poses_to_projection_matrices(poses)
+        self.projection_matrices = camera_poses_to_projection_matrices(poses, self.intrinsic_matrices)
 
     def edit_settings(self, exposure, gain, sharpness, contrast):
         self.cameras.exposure = [exposure] * self.num_cameras
@@ -176,7 +178,7 @@ class MocapSystem:
             frames[i] = np.rot90(frames[i], k=0)
             frames[i] = make_square(frames[i])
             if ADVANCED_BA == False:
-                frames[i] = cv.undistort(frames[i], intrinsic_matrices[i], distortion_coefs[i])
+                frames[i] = cv.undistort(frames[i], self.intrinsic_matrices[i], self.distortion_coefs[i])
             # many of these things were also done in _find_dot
             # frames[i] = cv.medianBlur(frames[i],9)
             # frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
@@ -226,8 +228,8 @@ class MocapSystem:
             image_points = undistort_image_points(
                 image_points,
                 self.optimal_matrices,
-                intrinsic_matrices,
-                distortion_coefs
+                self.intrinsic_matrices,
+                self.distortion_coefs
             )
         errors, object_points, frames = (
             find_point_correspondance_and_object_points(
