@@ -56,7 +56,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses, intri
 # https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Triggs00.pdf
 # original bundle adjustment, specifies focal length as an adjustment
 # which seems like a mistake since its not used in the residual function
-def bundle_adjustment(image_points, camera_poses, projection_matrices):
+def bundle_adjustment(image_points, camera_poses, intrinsic_matrices):
 
     def params_to_camera_poses(params):
         focal_distances = []
@@ -78,9 +78,10 @@ def bundle_adjustment(image_points, camera_poses, projection_matrices):
 
     def residual_function(params):
         camera_poses, focal_distances = params_to_camera_poses(params)
+        projection_matrices = camera_poses_to_projection_matrices(camera_poses, intrinsic_matrices)
         object_points = triangulate_points(image_points, projection_matrices)
         errors = calculate_reprojection_errors(
-            image_points, object_points, camera_poses
+            image_points, object_points, camera_poses, intrinsic_matrices
         )
         errors = errors.astype(np.float32)
         return errors
@@ -101,14 +102,87 @@ def bundle_adjustment(image_points, camera_poses, projection_matrices):
     return params_to_camera_poses(res.x)[0]
 
 
-def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, poses):
+def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camera_poses):
+    num_cameras = len(camera_poses)
+    section_size = 15
+
     # function to turn params back into data structures
+    def parse_params(params):
+        new_poses = []
+        new_intrinsics = []
+        new_dist = []
+        for i in range(0, num_cameras):
+            section_boundary = i * section_size
+
+            new_poses.append(
+                {
+                    "R": Rotation.as_matrix(
+                        Rotation.from_rotvec(params[section_boundary  : section_boundary + 3])
+                    ),
+                    "t": params[section_boundary + 3 : section_boundary + 3 + 3],
+                }
+            )
+
+            i_offset = section_boundary + 3 + 3
+            new_intrinsics.append(
+                np.array([
+                    [params[i_offset]*1000,   0.        , params[i_offset + 2]*1000],
+                    [  0.        , params[i_offset+1]*1000, params[i_offset + 3]*1000],
+                    [  0.        ,   0.        ,   1.        ]
+                ])
+            )
+
+            d_offset = i_offset + 4
+            d_vec = params[d_offset:d_offset+5]
+            new_dist.append(np.array(d_vec))
+
+        return new_poses, new_intrinsics, new_dist
 
     # residual function
+    def residual_function(params):
+        parsed_poses, parsed_intrinsics, parsed_distortion_coefs = parse_params(params)
+        new_projection_matrices = camera_poses_to_projection_matrices(parsed_poses, parsed_intrinsics)
+        dimensions = (320, 240)
+        optimal_matrices = []
+        for i in range(0, num_cameras):
+            opt, _ = cv.getOptimalNewCameraMatrix(parsed_intrinsics[i], parsed_distortion_coefs[i], dimensions, 1, dimensions)
+            optimal_matrices.append(opt)
+        fixed_image_points = []
+        for i in range(0, len(image_points)):
+            fixed_image_points = fixed_image_points + undistort_image_points(
+                    [image_points[i]],
+                    optimal_matrices,
+                    parsed_intrinsics,
+                    parsed_distortion_coefs
+                )
+        object_points = triangulate_points(fixed_image_points, new_projection_matrices)
+        return calculate_reprojection_errors(
+            fixed_image_points, object_points, parsed_poses, parsed_intrinsics
+        )
 
     # build initial params
-    print("hmm")
+    # rotation_vector, translation_vector, intrinsics, distortion_coef
+    params = []
+    for i, camera_pose in enumerate(camera_poses):
+        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
+        trans_vec = np.array(camera_pose["t"]).flatten()
 
+        i_mat = intrinsic_matrices[i]
+        dist_vec = distortion_coefs[i]
+        i_vec = [i_mat[0][0]/1000, i_mat[1][1]/1000, i_mat[0][2]/1000, i_mat[1][2]/1000]
+        d_vec = dist_vec[0].tolist()
+        section = rot_vec.tolist() + trans_vec.tolist() + i_vec + d_vec
+        params = params + section
+    
+
+    scale = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.01, 0.01, 0.001, 0.001, 0.001]
+    scale = scale + scale + scale + scale
+    res = optimize.least_squares(
+        residual_function, params, max_nfev=200, jac='3-point',x_scale=scale, verbose=2, method='dogbox', loss="linear", ftol=1e-15, xtol=None, tr_solver='exact', f_scale=1
+    )
+    print("Res")
+    print(res.fun)
+    return parse_params(res.x)
     
 
 def triangulate_point(image_points, projection_matrices):
@@ -142,13 +216,8 @@ def DLT(Ps, image_points):
         A.append(P[0, :] - image_point[0] * P[2, :])
 
     A = np.array(A).reshape((len(Ps) * 2, 4))
-    print("AAA")
-    print(A)
-    print("AT")
-    print(A.transpose())
     B = A.transpose() @ A
-    print("BBB")
-    print(B.shape)
+
     _, _, Vh = linalg.svd(B, full_matrices=False)
 
     object_point = Vh[3, 0:3] / Vh[3, 3]
@@ -372,12 +441,13 @@ def camera_pose_to_internal(serialized_camera_poses):
     return serialized_camera_poses
 
 def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, distortion_coefs):
+    fixed = copy.deepcopy(image_points)
     for i, image_point_set in enumerate(image_points):
         for j, image_point in enumerate(image_point_set):
             wrapped_point = np.array(image_point, np.float32)
             undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[i], distortion_coefs[i], np.eye(3), optimal_matrices[i])
-            image_points[i][j] = undistorted[0][0]
-    return image_points
+            fixed[i][j] = undistorted[0][0]
+    return fixed
 # Opportunity for performance improvements here. This doesn't change
 # for a given capture but is recalculated fairly deep down the run loop
 def camera_poses_to_projection_matrices(camera_poses, intrinsic_matrices):

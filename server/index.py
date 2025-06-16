@@ -182,7 +182,7 @@ def calculate_bundle_adjustment(data):
     image_points = np.array(data["cameraPoints"])
     camera_poses = camera_pose_to_internal(data["cameraPoses"])
     projection_matrices = camera_poses_to_projection_matrices(camera_pose)
-    camera_poses = bundle_adjustment(image_points, camera_poses, projection_matrices)
+    camera_poses = bundle_adjustment(image_points, camera_poses, mocapSystem.intrinsic_matrices)
     object_points = triangulate_points(image_points, projection_matrices)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, camera_poses)
@@ -266,11 +266,11 @@ def calculate_camera_pose(data):
         camera_poses.append({"R": R, "t": t})
 
     projection_matrics = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
-    camera_poses = bundle_adjustment(image_points, camera_poses, projection_matrices)
+    camera_poses = bundle_adjustment(image_points, camera_poses, mocapSystem.intrinsic_matrices)
     
     object_points = triangulate_points(image_points, projection_matrics)
     error = np.mean(
-        calculate_reprojection_errors(image_points, object_points, camera_poses)
+        calculate_reprojection_errors(image_points, object_points, camera_poses, mocapSystem.intrinsic_matrices)
     )
     print(f"New pose computed, average reprojection error: {error}")
     mocapSystem.set_camera_poses(camera_poses)
