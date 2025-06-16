@@ -175,13 +175,21 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
         params = params + section
     
 
-    scale = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.01, 0.01, 0.001, 0.001, 0.001]
+    scale = [0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1, 1, 0.001, 0.001, 0.001, 0.001, 0.001]
     scale = scale + scale + scale + scale
     res = optimize.least_squares(
-        residual_function, params, max_nfev=200, jac='3-point',x_scale=scale, verbose=2, method='dogbox', loss="linear", ftol=1e-15, xtol=None, tr_solver='exact', f_scale=1
+        residual_function,
+        params,
+        max_nfev=100,
+        jac='3-point',
+        x_scale=scale,
+        verbose=2,
+        method='dogbox',
+        loss="linear",
+        # ftol=1e-9,
+        xtol=1e-9,
+        f_scale=1
     )
-    print("Res")
-    print(res.fun)
     return parse_params(res.x)
     
 
@@ -224,7 +232,7 @@ def DLT(Ps, image_points):
 
     return object_point
 
-def find_point_correspondance_and_object_points(image_points, camera_poses, projection_matrices, frames=None):
+def find_point_correspondance_and_object_points(image_points, camera_poses, intrinsic_matrices, projection_matrices, frames=None):
     for image_points_i in image_points:
         try:
             image_points_i.remove([None, None])
@@ -308,7 +316,7 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, proj
             continue
 
         errors_i = calculate_reprojection_errors(
-            image_points, object_points_i, camera_poses
+            image_points, object_points_i, camera_poses, intrinsic_matrices
         )
 
         object_points.append(object_points_i[np.argmin(errors_i)])

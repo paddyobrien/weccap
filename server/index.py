@@ -17,8 +17,10 @@ from helpers import (
     camera_poses_to_projection_matrices,
     calculate_reprojection_errors,
     bundle_adjustment,
+    bundle_adjustment2,
     triangulate_points,
-    NumpyEncoder
+    NumpyEncoder,
+    undistort_image_points
 )
 
 app = Flask(__name__)
@@ -181,18 +183,33 @@ def calculate_bundle_adjustment(data):
     mocapSystem = MocapSystem.instance()
     image_points = np.array(data["cameraPoints"])
     camera_poses = camera_pose_to_internal(data["cameraPoses"])
-    projection_matrices = camera_poses_to_projection_matrices(camera_pose)
-    camera_poses = bundle_adjustment(image_points, camera_poses, mocapSystem.intrinsic_matrices)
-    object_points = triangulate_points(image_points, projection_matrices)
+    projection_matrices = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
+    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+
+    mocapSystem.set_camera_poses(new_poses)
+    mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
+
+    fixed_image_points = []
+    for i in range(0, len(image_points)):
+        fixed_image_points = fixed_image_points + undistort_image_points(
+                [image_points[i]],
+                mocapSystem.optimal_matrices,
+                mocapSystem.intrinsic_matrices,
+                mocapSystem.distortion_coefs
+            )
+
+    object_points = triangulate_points(fixed_image_points, mocapSystem.projection_matrices)
     error = np.mean(
-        calculate_reprojection_errors(image_points, object_points, camera_poses)
+        calculate_reprojection_errors(image_points, object_points, mocapSystem.camera_poses, mocapSystem.intrinsic_matrices)
     )
     print(f"New pose computed, average reprojection error: {error}")
-    mocapSystem.set_camera_poses(camera_poses)
+    
 
     socketio.emit(
         "camera-pose", {
-            "camera_poses": camera_poses_to_serializable(camera_poses),
+            "camera_poses": camera_poses_to_serializable(mocapSystem.camera_poses),
+            "intrinsic_matrices": mocapSystem.intrinsic_matrices,
+            "distortion_coefs": mocapSystem.distortion_coefs,
             "error": error
         },
     )
@@ -266,6 +283,8 @@ def calculate_camera_pose(data):
         camera_poses.append({"R": R, "t": t})
 
     projection_matrics = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
+
+    # TODO - convert to new bundle adjustment
     camera_poses = bundle_adjustment(image_points, camera_poses, mocapSystem.intrinsic_matrices)
     
     object_points = triangulate_points(image_points, projection_matrics)

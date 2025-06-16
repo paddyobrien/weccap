@@ -67,6 +67,8 @@ export default function App() {
     socket.on("camera-pose", data => {
       setHasCameraPose(true)
       setCameraPoses(data["camera_poses"])
+      console.log(data["intrinsic_matrices"])
+      console.log(data["distortion_coefs"])
     })
 
     return () => {

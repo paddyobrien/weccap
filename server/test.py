@@ -52,11 +52,4 @@ print("Error")
 print(error)
 print(old_error)
 
-parsed_poses, parsed_intrinsics, parsed_distortion_coefs = bundle_adjustment2(image_points, parsed_intrinsics, parsed_distortion_coefs, parsed_poses)
-projection_matrices = camera_poses_to_projection_matrices(parsed_poses, parsed_intrinsics)
-object_points = triangulate_points(image_points, projection_matrices)
 
-error = np.mean(
-    calculate_reprojection_errors(image_points, object_points, parsed_poses, parsed_intrinsics)
-)
-print(error)

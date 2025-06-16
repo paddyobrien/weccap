@@ -89,11 +89,7 @@ class MocapSystem:
             self.num_cameras = cam_count()
             print(f"{self.num_cameras} cameras found")
             if ADVANCED_BA == True:
-                self.optimal_matrices = []
-                dimensions = (320, 240)
-                for i in range(0, self.num_cameras):
-                    opt, _ = cv.getOptimalNewCameraMatrix(self.intrinsic_matrices[i], self.distortion_coefs[i], dimensions, 1, dimensions)
-                    self.optimal_matrices.append(opt)
+                self._calculate_optimal_matrices()
         else:
             print(f"Failed to find cameras, please check connections")
 
@@ -121,9 +117,14 @@ class MocapSystem:
             "gain": self.cameras.gain if self.cameras else 0
         }
 
+    def set_camera_intrinsics(self, intrinsic_matrices, distortion_coefs):
+        self.intrinsic_matrices = intrinsic_matrices
+        self.distortion_coefs = distortion_coefs
+        self.projection_matrices = camera_poses_to_projection_matrices(self.camera_poses, self.intrinsic_matrices)
+
     def set_camera_poses(self, poses):
         self.camera_poses = poses
-        self.projection_matrices = camera_poses_to_projection_matrices(poses, self.intrinsic_matrices)
+        self.projection_matrices = camera_poses_to_projection_matrices(self.camera_poses, self.intrinsic_matrices)
 
     def edit_settings(self, exposure, gain, sharpness, contrast):
         self.cameras.exposure = [exposure] * self.num_cameras
@@ -233,7 +234,7 @@ class MocapSystem:
             )
         errors, object_points, frames = (
             find_point_correspondance_and_object_points(
-                image_points, self.camera_poses, self.projection_matrices, frames
+                image_points, self.camera_poses, self.intrinsic_matrices, self.projection_matrices, frames
             )
         )
         # convert to world coordinates
@@ -289,6 +290,13 @@ class MocapSystem:
                     "filtered_objects": filtered_objects,
                 },
             )
+
+    def _calculate_optimal_matrices(self):
+        self.optimal_matrices = []
+        dimensions = (320, 240)
+        for i in range(0, self.num_cameras):
+            opt, _ = cv.getOptimalNewCameraMatrix(self.intrinsic_matrices[i], self.distortion_coefs[i], dimensions, 1, dimensions)
+            self.optimal_matrices.append(opt)
 
     def change_mode(self, target_mode):
         valid_source_modes = Transitions[target_mode]
