@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Col, Container, Row } from 'react-bootstrap';
 import { socket } from './lib/socket';
-import { defaultCameraPose, defaultWorldMatrix } from './defaultCameraPose';
+import { defaultCameraPose, defaultWorldMatrix, defaultIntrinsics, defaultDistC } from './defaultCameraPose';
 import ConnectionManager from './components/ConnectionManager';
 import WorldView from './components/WorldView';
 import CameraView from './components/CameraView';
@@ -19,6 +19,8 @@ import Playback from './components/Playback';
 
 export const LS_POSE_KEY = "CAMERA_POSE";
 export const LS_WORLD_KEY = "WORLD_MATRIX";
+export const LS_INTRINSIC_KEY = "CAMERA_INTRINSICS";
+export const LS_DISTC_KEY = "DISTC";
 
 export default function App() {
   const [mocapMode, setMocapMode] = useState(Modes.ImageProcessing);
@@ -49,6 +51,22 @@ export default function App() {
     return defaultWorldMatrix
   })
 
+  const [intrinsicMatrices, setIntrinsicMatrices] = useState<Array<object>>(() => {
+    const saved = localStorage.getItem(LS_INTRINSIC_KEY)
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return defaultIntrinsics
+  });
+
+  const [distortionCoefs, setDistortionCoefs] = useState<Array<object>>(() => {
+    const saved = localStorage.getItem(LS_DISTC_KEY)
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return defaultDistC
+  });
+
   useSocketListener("object-points",  (data) => {
     setLastObjectPointTimestamp(data["time_ms"])
   })
@@ -67,8 +85,9 @@ export default function App() {
     socket.on("camera-pose", data => {
       setHasCameraPose(true)
       setCameraPoses(data["camera_poses"])
-      console.log(data["intrinsic_matrices"])
-      console.log(data["distortion_coefs"])
+      console.log(data)
+      setIntrinsicMatrices(data["intrinsic_matrices"])
+      setDistortionCoefs(data["distortion_coefs"])
     })
 
     return () => {
@@ -76,7 +95,7 @@ export default function App() {
     }
   }, [])
 
-  // TODO - Update exposure here too
+  // TODO - Update camera settings and intrinsics here too
   const stateUpdater = useCallback((data) => {
     setMocapMode(data.mode)
     if (!data.camera_poses) {
@@ -145,10 +164,14 @@ export default function App() {
                   mocapMode={mocapMode}
                   cameraPoses={cameraPoses}
                   toWorldCoordsMatrix={toWorldCoordsMatrix}
+                  intrinsicMatrices={intrinsicMatrices}
+                  distortionCoefs={distortionCoefs}
                   objectPoints={objectPoints}
                   lastObjectPointTimestamp={lastObjectPointTimestamp}
                   setCameraPoses={setCameraPoses}
                   setToWorldCoordsMatrix={setToWorldCoordsMatrix}
+                  setIntrinsicMatrices={setIntrinsicMatrices}
+                  setDistortionCoefs={setDistortionCoefs}
                   setParsedCapturedPointsForPose={setParsedCapturedPointsForPose}
                   setLastObjectPointTimestamp={setLastObjectPointTimestamp}
                 />

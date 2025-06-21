@@ -25,6 +25,8 @@ from helpers import (
     undistort_image_points
 )
 
+from settings import intrinsic_matrices
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -184,13 +186,9 @@ def change_point_settings(data):
 def calculate_bundle_adjustment(data):
     mocapSystem = MocapSystem.instance()
     image_points = np.array(data["cameraPoints"])
-    camera_poses = camera_pose_to_internal(data["cameraPoses"])
-    projection_matrices = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
     new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
 
     mocapSystem.set_camera_poses(new_poses)
-    print(mocapSystem.distortion_coefs)
-    print(new_distortion_coefs)
     mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
     fixed_image_points = []
@@ -208,8 +206,6 @@ def calculate_bundle_adjustment(data):
     )
     print(f"New pose computed, average reprojection error: {error}")
     
-    
-
     socketio.emit(
         "camera-pose", {
             "camera_poses": camera_poses_to_serializable(mocapSystem.camera_poses),
@@ -267,7 +263,7 @@ def calculate_camera_pose(data):
                 ),
                 camera_poses_to_projection_matrices(np.concatenate(
                     [[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]]
-                )),
+                ), intrinsic_matrices),
             )
             object_points_camera_coordinate_frame = np.array(
                 [possible_Rs[i].T @ object_point for object_point in object_points]
@@ -287,17 +283,24 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    projection_matrics = camera_poses_to_projection_matrices(camera_poses, mocapSystem.intrinsic_matrices)
+    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+    mocapSystem.set_camera_poses(new_poses)
+    mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
-    # TODO - convert to new bundle adjustment
-    camera_poses = bundle_adjustment(image_points, camera_poses, mocapSystem.intrinsic_matrices)
-    
-    object_points = triangulate_points(image_points, projection_matrics)
+    fixed_image_points = []
+    for i in range(0, len(image_points)):
+        fixed_image_points = fixed_image_points + undistort_image_points(
+                [image_points[i]],
+                mocapSystem.optimal_matrices,
+                mocapSystem.intrinsic_matrices,
+                mocapSystem.distortion_coefs
+            )
+
+    object_points = triangulate_points(fixed_image_points, mocapSystem.projection_matrices)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, camera_poses, mocapSystem.intrinsic_matrices)
     )
     print(f"New pose computed, average reprojection error: {error}")
-    mocapSystem.set_camera_poses(camera_poses)
 
     socketio.emit(
         "camera-pose", {

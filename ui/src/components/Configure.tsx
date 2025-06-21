@@ -7,16 +7,20 @@ import SmallHeader from "./SmallHeader"
 import ScaleCalibration from "./ScaleCalibration"
 import AlignmentCalibration from "./AlignmentCalibration"
 import OriginCalibration from "./OriginCalibration"
-import { LS_POSE_KEY, LS_WORLD_KEY } from "../App"
+import { LS_INTRINSIC_KEY, LS_POSE_KEY, LS_WORLD_KEY } from "../App"
 
 interface Props {
     mocapMode: Modes,
     cameraPoses: any,
     toWorldCoordsMatrix: any,
+    intrinsicMatrices: any,
+    distortionCoefs: any,
     objectPoints: MutableRefObject<number[][][]>,
     lastObjectPointTimestamp: number,
     setCameraPoses: (s: any) => void,
     setToWorldCoordsMatrix: (s: any) => void
+    setIntrinsicMatrices: (s: any) => void
+    setDistortionCoefs: (s: any) => void
     setParsedCapturedPointsForPose: (s: Array<Array<Array<number>>>) => void
     setLastObjectPointTimestamp: (s: any) => void
 }
@@ -25,10 +29,14 @@ export default function Configure({
     mocapMode,
     cameraPoses,
     toWorldCoordsMatrix,
+    intrinsicMatrices,
+    distortionCoefs,
     objectPoints,
     lastObjectPointTimestamp,
     setCameraPoses,
     setToWorldCoordsMatrix,
+    setIntrinsicMatrices,
+    setDistortionCoefs,
     setParsedCapturedPointsForPose,
     setLastObjectPointTimestamp
 }: Props) {
@@ -64,11 +72,31 @@ export default function Configure({
     const loadWorldMatrix = useCallback(() => {
         const saved = localStorage.getItem(LS_WORLD_KEY);
         if (saved) {
-            const matrix = JSON.parse(saved);
-            setToWorldCoordsMatrix(matrix);
+            const toWorldCoordsMatrix = JSON.parse(saved);
+            setToWorldCoordsMatrix(toWorldCoordsMatrix);
             socket.emit("set-to-world-matrix", {toWorldCoordsMatrix})
             setLoadedMatrix(true);
             setTimeout(() => setLoadedMatrix(false), 2000)
+        }
+    }, [cameraPoses])
+
+    const [isSavedIntrinsics, setIsSavedIntrinsics] = useState(false)
+    const saveIntrinsicMatrices = useCallback(() => {
+        socket.emit("set-intrinsic-matrices", {intrinsicMatrices})
+        localStorage.setItem(LS_INTRINSIC_KEY, JSON.stringify(intrinsicMatrices))
+        setIsSavedIntrinsics(true);
+        setTimeout(() => setIsSavedIntrinsics(false), 2000)
+    }, [toWorldCoordsMatrix])
+
+    const [isLoadedIntrinsics, setLoadedIntrinsics] = useState(false)
+    const loadIntrinsicMatrices = useCallback(() => {
+        const saved = localStorage.getItem(LS_INTRINSIC_KEY);
+        if (saved) {
+            const intrinsicMatrices = JSON.parse(saved);
+            setIntrinsicMatrices(intrinsicMatrices);
+            socket.emit("set-intrinsic-matrices", {intrinsicMatrices})
+            setLoadedIntrinsics(true);
+            setTimeout(() => setLoadedIntrinsics(false), 2000)
         }
     }, [cameraPoses])
     
@@ -128,6 +156,20 @@ export default function Configure({
                                         <Button className="mt-2 mr-2" variant="outline-primary" onClick={loadCameraPoses}>Load</Button>
                                         <span>{isSaved && "Poses saved!"}</span>
                                         <span>{isLoaded && "Poses loaded"}</span>
+                                    </Col>
+                                </Row>
+                                <Row className="mb-4">
+                                    <Col xs={4} className='pt-2'>
+                                        <SmallHeader>Current Intrinsic Matrices:</SmallHeader>
+                                        <Form.Control
+                                            as="textarea" rows={3}
+                                            value={JSON.stringify(intrinsicMatrices)}
+                                            onChange={(event) => setIntrinsicMatrices(JSON.parse(event.target.value))}
+                                        />
+                                        <Button className="mt-2" variant="outline-primary" onClick={saveIntrinsicMatrices}>Save</Button>
+                                        <Button className="mt-2 mr-2" variant="outline-primary" onClick={loadIntrinsicMatrices}>Load</Button>
+                                        <span>{isSavedIntrinsics && "Intrinsic matrices saved!"}</span>
+                                        <span>{isLoadedIntrinsics && "Intrinsic matrices loaded!"}</span>
                                     </Col>
                                 </Row>
                                 <Row className="mb-4">

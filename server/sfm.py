@@ -53,7 +53,7 @@ def motion_from_essential(E: np.ndarray) -> Tuple[List[np.ndarray], List[np.ndar
     """
     assert E.shape == (3, 3), "Essential matrix must be 3x3."
 
-    _, R1, R2, t = cv.decomposeEssentialMat(E)
+    R1, R2, t = cv.decomposeEssentialMat(E)
 
     rotations_matrices = [R1, R1, R2, R2]
     translations = [t, -t, t, -t]

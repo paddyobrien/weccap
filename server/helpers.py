@@ -126,8 +126,8 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
             i_offset = section_boundary + 3 + 3
             new_intrinsics.append(
                 np.array([
-                    [params[i_offset]*1000,   0.        , params[i_offset + 2]*1000],
-                    [  0.        , params[i_offset+1]*1000, params[i_offset + 3]*1000],
+                    [params[i_offset],   0.        , params[i_offset + 2]],
+                    [  0.        , params[i_offset+1], params[i_offset + 3]],
                     [  0.        ,   0.        ,   1.        ]
                 ])
             )
@@ -136,7 +136,7 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
             d_vec = params[d_offset:d_offset+5]
             new_dist.append(np.array(d_vec))
 
-        return new_poses, new_intrinsics, new_dist
+        return new_poses, new_intrinsics, np.array(new_dist)
 
     # residual function
     def residual_function(params):
@@ -169,24 +169,24 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
 
         i_mat = intrinsic_matrices[i]
         dist_vec = distortion_coefs[i].tolist()
-        i_vec = [i_mat[0][0]/1000, i_mat[1][1]/1000, i_mat[0][2]/1000, i_mat[1][2]/1000]
+        i_vec = [i_mat[0][0], i_mat[1][1], i_mat[0][2], i_mat[1][2]]
         section = rot_vec.tolist() + trans_vec.tolist() + i_vec + dist_vec
         params = params + section
     
 
-    scale = [0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1, 1, 0.001, 0.001, 0.001, 0.001, 0.001]
+    scale = [0.01, 0.01, 0.01, 0.01, 0.01, 1, 1, 1, 1, 1, 0.01, 0.001, 0.001, 0.001, 0.001]
     scale = scale + scale + scale + scale
     res = optimize.least_squares(
         residual_function,
         params,
-        max_nfev=6000,
+        max_nfev=100,
         jac='3-point',
         x_scale=scale,
         verbose=2,
         method='dogbox',
         loss="linear",
-        # ftol=1e-9,
-        xtol=1e-9,
+        ftol=1e-15,
+        xtol=None,
         f_scale=1
     )
     return parse_params(res.x)
@@ -429,6 +429,8 @@ def drawlines(img1, lines):
     _, c, _ = img1.shape
     color = (255,255,255)
     for r in lines:
+        if np.isnan(r[1]) or np.isnan(r[2]):
+            continue
         x0, y0 = map(int, [0, -r[2] / r[1]])
         x1, y1 = map(int, [c, -(r[2] + r[0] * c) / r[1]])
         img1 = cv.line(img1, (x0, y0), (x1, y1), color, 1)
@@ -448,16 +450,18 @@ def camera_pose_to_internal(serialized_camera_poses):
     return serialized_camera_poses
 
 def camera_intrinsics_to_serializable(intrinsics):
+    new_intrinsics = []
     for i in range(0, len(intrinsics)):
-        intrinsics[i] = intrinsics[i].tolist()
+        new_intrinsics += [intrinsics[i].tolist()]
 
-    return intrinsics
+    return new_intrinsics
 
 def camera_distortion_to_serializable(distortion):
+    new_distortion = []
     for i in range(0, len(distortion)):
-        distortion[i] = distortion[i].tolist()
+        new_distortion += [distortion[i].tolist()]
 
-    return distortion    
+    return new_distortion    
 
 def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, distortion_coefs):
     fixed = copy.deepcopy(image_points)
