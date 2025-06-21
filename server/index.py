@@ -12,6 +12,8 @@ from flask_cors import CORS
 from sfm import essential_from_fundamental, motion_from_essential
 from mocap_system import MocapSystem
 from helpers import (
+    camera_intrinsics_to_serializable,
+    camera_distortion_to_serializable,
     camera_poses_to_serializable,
     camera_pose_to_internal,
     camera_poses_to_projection_matrices,
@@ -187,6 +189,8 @@ def calculate_bundle_adjustment(data):
     new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
 
     mocapSystem.set_camera_poses(new_poses)
+    print(mocapSystem.distortion_coefs)
+    print(new_distortion_coefs)
     mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
     fixed_image_points = []
@@ -204,12 +208,13 @@ def calculate_bundle_adjustment(data):
     )
     print(f"New pose computed, average reprojection error: {error}")
     
+    
 
     socketio.emit(
         "camera-pose", {
             "camera_poses": camera_poses_to_serializable(mocapSystem.camera_poses),
-            "intrinsic_matrices": mocapSystem.intrinsic_matrices,
-            "distortion_coefs": mocapSystem.distortion_coefs,
+            "intrinsic_matrices": camera_intrinsics_to_serializable(mocapSystem.intrinsic_matrices),
+            "distortion_coefs": camera_distortion_to_serializable(mocapSystem.distortion_coefs),
             "error": error
         },
     )

@@ -126,7 +126,7 @@ export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParse
                         }}>
                         Bundle Adjustment
                     </Button>
-                    {isCalculatingPose && <span>Calculating...</span>}
+                    {isCalculatingPose && <span onClick={() => setIsCalculatingPose(false)}>Calculating...</span>}
                 </Col>
             </Row>
             <Row>

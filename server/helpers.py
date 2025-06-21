@@ -168,10 +168,9 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
         trans_vec = np.array(camera_pose["t"]).flatten()
 
         i_mat = intrinsic_matrices[i]
-        dist_vec = distortion_coefs[i]
+        dist_vec = distortion_coefs[i].tolist()
         i_vec = [i_mat[0][0]/1000, i_mat[1][1]/1000, i_mat[0][2]/1000, i_mat[1][2]/1000]
-        d_vec = dist_vec[0].tolist()
-        section = rot_vec.tolist() + trans_vec.tolist() + i_vec + d_vec
+        section = rot_vec.tolist() + trans_vec.tolist() + i_vec + dist_vec
         params = params + section
     
 
@@ -180,7 +179,7 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
     res = optimize.least_squares(
         residual_function,
         params,
-        max_nfev=100,
+        max_nfev=6000,
         jac='3-point',
         x_scale=scale,
         verbose=2,
@@ -448,12 +447,24 @@ def camera_pose_to_internal(serialized_camera_poses):
 
     return serialized_camera_poses
 
+def camera_intrinsics_to_serializable(intrinsics):
+    for i in range(0, len(intrinsics)):
+        intrinsics[i] = intrinsics[i].tolist()
+
+    return intrinsics
+
+def camera_distortion_to_serializable(distortion):
+    for i in range(0, len(distortion)):
+        distortion[i] = distortion[i].tolist()
+
+    return distortion    
+
 def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, distortion_coefs):
     fixed = copy.deepcopy(image_points)
     for i, image_point_set in enumerate(image_points):
         for j, image_point in enumerate(image_point_set):
             wrapped_point = np.array(image_point, np.float32)
-            undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[i], distortion_coefs[i], np.eye(3), optimal_matrices[i])
+            undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[i], np.array([distortion_coefs[i]]), np.eye(3), optimal_matrices[i])
             fixed[i][j] = undistorted[0][0]
     return fixed
 # Opportunity for performance improvements here. This doesn't change
