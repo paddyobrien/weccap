@@ -19,7 +19,6 @@ from helpers import (
     camera_poses_to_projection_matrices,
     calculate_reprojection_errors,
     bundle_adjustment,
-    bundle_adjustment2,
     triangulate_points,
     NumpyEncoder,
     undistort_image_points
@@ -162,7 +161,7 @@ def change_point_settings(data):
 def calculate_bundle_adjustment(data):
     mocapSystem = MocapSystem.instance()
     image_points = np.array(data["cameraPoints"])
-    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
 
     mocapSystem.set_camera_poses(new_poses)
     mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
@@ -259,7 +258,7 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment2(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
     mocapSystem.set_camera_poses(new_poses)
     mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
