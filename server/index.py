@@ -322,6 +322,18 @@ def set_to_world_matrix(data):
     mocapSystem = MocapSystem.instance()
     mocapSystem.to_world_coords_matrix= m 
 
+@socketio.on("set-intrinsic-matrices")
+def set_camera_poses(data):
+    intrinsics = np.array(data["intrinsicMatrices"])
+    mocapSystem = MocapSystem.instance()
+    mocapSystem.set_camera_intrinsics(intrinsics, mocapSystem.distortion_coefs)
+
+@socketio.on("set-distortion-coefs")
+def set_camera_poses(data):
+    distortionCoefs = np.array(data["distortionCoefs"])
+    mocapSystem = MocapSystem.instance()
+    mocapSystem.set_camera_intrinsics(mocapSystem.intrinsic_matrices, distortionCoefs)
+
 @socketio.on("change-mocap-mode")
 def change_mocap_mode(data):
     mocapSystem = MocapSystem.instance()

@@ -11,7 +11,9 @@ from helpers import (
     locate_objects,
     make_square,
     camera_poses_to_projection_matrices,
-    undistort_image_points
+    undistort_image_points,
+    camera_intrinsics_to_serializable,
+    camera_distortion_to_serializable
 )
 from flags import ADVANCED_BA
 
@@ -113,6 +115,8 @@ class MocapSystem:
             "mode": self.capture_mode, 
             "camera_poses": self.camera_poses,
             "to_world_coords_matrix": self.to_world_coords_matrix,
+            "intrinsic_matrices": camera_intrinsics_to_serializable(self.intrinsic_matrices),
+            "distortion_coefs": camera_distortion_to_serializable(self.distortion_coefs),
             "exposure": self.cameras.exposure if self.cameras else 0,
             "gain": self.cameras.gain if self.cameras else 0
         }
@@ -205,18 +209,20 @@ class MocapSystem:
         for contour in contours:
             moments = cv.moments(contour)
             if moments["m00"] != 0:
-                center_x = int(moments["m10"] / moments["m00"])
-                center_y = int(moments["m01"] / moments["m00"])
+                center_x = moments["m10"] / moments["m00"]
+                center_y = moments["m01"] / moments["m00"]
+                center_x_int = int(center_x)
+                center_y_int = int(center_y)
                 cv.putText(
                     img,
-                    f"({center_x}, {center_y})",
-                    (center_x, center_y - 15),
+                    f"({center_x_int}, {center_y_int})",
+                    (center_x_int, center_y_int - 15),
                     cv.FONT_HERSHEY_SIMPLEX,
                     0.3,
                     (100, 255, 100),
                     1,
                 )
-                cv.circle(img, (center_x, center_y), 1, (100, 255, 100), -1)
+                cv.circle(img, (center_x_int, center_y_int), 1, (100, 255, 100), -1)
                 image_points.append([center_x, center_y])
 
         if len(image_points) == 0:

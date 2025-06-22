@@ -33,10 +33,12 @@ function saveAs(blob, name) {
     document.body.removeChild(link)
 }
 
-export function createZipFile(captureName, times, objectPoints, errors, imagePoints, cameraPoses, toWorldCoordsMatrix) {
+export function createZipFile(captureName, times, objectPoints, errors, imagePoints, cameraPoses, intrinsicMatrices, distortionCoefs, toWorldCoordsMatrix) {
     const zip = new JSZip();
     zip.file(`${captureName}/camera_poses.json`, createJSON(cameraPoses));
     zip.file(`${captureName}/world_matrix.json`, createJSON(toWorldCoordsMatrix));
+    zip.file(`${captureName}/intrinsics.json`, createJSON(intrinsicMatrices));
+    zip.file(`${captureName}/distortion_coefs.json`, createJSON(distortionCoefs));
     zip.file(`${captureName}/object_points.csv`, createCSV(objectPoints, times));
     zip.file(`${captureName}/object_errors.csv`, createCSV(errors, times));
     zip.file(`${captureName}/image_points.jsonl`, createJSONL(imagePoints, times));

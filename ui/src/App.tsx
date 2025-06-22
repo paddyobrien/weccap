@@ -29,7 +29,6 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [parsedCapturedPointsForPose, setParsedCapturedPointsForPose] = useState<Array<Array<Array<number>>>>([]);
 
-
   const objectPoints = useRef<Array<Array<Array<number>>>>([])
   const filteredObjects = useRef<object[][]>([])
   const objectPointErrors = useRef<Array<Array<number>>>([])
@@ -85,7 +84,6 @@ export default function App() {
     socket.on("camera-pose", data => {
       setHasCameraPose(true)
       setCameraPoses(data["camera_poses"])
-      console.log(data)
       setIntrinsicMatrices(data["intrinsic_matrices"])
       setDistortionCoefs(data["distortion_coefs"])
     })
@@ -95,7 +93,7 @@ export default function App() {
     }
   }, [])
 
-  // TODO - Update camera settings and intrinsics here too
+  // TODO - Update camera settings here, requires pulling camera settings up to this level
   const stateUpdater = useCallback((data) => {
     setMocapMode(data.mode)
     if (!data.camera_poses) {
@@ -112,7 +110,17 @@ export default function App() {
       setHasToWorldMatrix(true)
       setToWorldCoordsMatrix(data.to_world_coords_matrix)
     }
-  }, [cameraPoses, toWorldCoordsMatrix]);
+    if (!data.intrinsic_matrices) {
+      socket.emit("set-intrinsic-matrices", {intrinsicMatrices})
+    } else {
+      setIntrinsicMatrices(data.intrinsic_matrices)
+    }
+    if (!data.distortion_coefs) {
+      socket.emit("set-distortion-coefs", {distortionCoefs})
+    } else {
+      setDistortionCoefs(data.distortion_coefs)
+    }
+  }, [cameraPoses, toWorldCoordsMatrix, intrinsicMatrices, distortionCoefs]);
 
   return (
     <Container fluid>
@@ -149,7 +157,9 @@ export default function App() {
             > 
               <Tab eventKey="capture" title="⏺ Capture">
                   <Capture
-                    cameraPoses={cameraPoses} 
+                    cameraPoses={cameraPoses}
+                    intrinsicMatrices={intrinsicMatrices}
+                    distortionCoefs={distortionCoefs} 
                     toWorldCoordsMatrix={toWorldCoordsMatrix}
                     mocapMode={mocapMode}
                     objectPoints={objectPoints}

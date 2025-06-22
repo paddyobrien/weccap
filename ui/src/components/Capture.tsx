@@ -9,6 +9,8 @@ import { createZipFile, triggerDownload } from "../lib/download";
 
 interface Props {
     cameraPoses: any,
+    intrinsicMatrices: any,
+    distortionCoefs: any,
     toWorldCoordsMatrix: any,
     mocapMode: Modes,
     objectPoints: MutableRefObject<number[][][]>
@@ -19,7 +21,7 @@ interface Props {
 }
 
 
-export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
+export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoefs, toWorldCoordsMatrix, mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
     const [currentCaptureName, setCurrentCaptureName] = useState("");
     const [recordVideo, setRecordVideo] = useState(false);
     const objectPointTimes = useRef<Array<Array<Array<number>>>>([]);
@@ -51,6 +53,8 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
             objectPointErrors.current,
             imagePoints.current,
             cameraPoses,
+            intrinsicMatrices,
+            distortionCoefs,
             toWorldCoordsMatrix,
         )
     }, [currentCaptureName, cameraPoses, toWorldCoordsMatrix])
@@ -63,6 +67,8 @@ export default function Capture({ cameraPoses, toWorldCoordsMatrix, mocapMode, o
             objectPointErrors.current,
             imagePoints.current,
             cameraPoses,
+            intrinsicMatrices,
+            distortionCoefs,
             toWorldCoordsMatrix,
         )
         setIsRecording(false)

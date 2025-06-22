@@ -7,7 +7,7 @@ import SmallHeader from "./SmallHeader"
 import ScaleCalibration from "./ScaleCalibration"
 import AlignmentCalibration from "./AlignmentCalibration"
 import OriginCalibration from "./OriginCalibration"
-import { LS_INTRINSIC_KEY, LS_POSE_KEY, LS_WORLD_KEY } from "../App"
+import { LS_DISTC_KEY, LS_INTRINSIC_KEY, LS_POSE_KEY, LS_WORLD_KEY } from "../App"
 
 interface Props {
     mocapMode: Modes,
@@ -78,7 +78,7 @@ export default function Configure({
             setLoadedMatrix(true);
             setTimeout(() => setLoadedMatrix(false), 2000)
         }
-    }, [cameraPoses])
+    }, [toWorldCoordsMatrix])
 
     const [isSavedIntrinsics, setIsSavedIntrinsics] = useState(false)
     const saveIntrinsicMatrices = useCallback(() => {
@@ -86,7 +86,7 @@ export default function Configure({
         localStorage.setItem(LS_INTRINSIC_KEY, JSON.stringify(intrinsicMatrices))
         setIsSavedIntrinsics(true);
         setTimeout(() => setIsSavedIntrinsics(false), 2000)
-    }, [toWorldCoordsMatrix])
+    }, [intrinsicMatrices])
 
     const [isLoadedIntrinsics, setLoadedIntrinsics] = useState(false)
     const loadIntrinsicMatrices = useCallback(() => {
@@ -98,7 +98,27 @@ export default function Configure({
             setLoadedIntrinsics(true);
             setTimeout(() => setLoadedIntrinsics(false), 2000)
         }
-    }, [cameraPoses])
+    }, [intrinsicMatrices])
+
+    const [isSavedDistCoefs, setIsSavedDistCoefs] = useState(false)
+    const saveDistortionCoefs = useCallback(() => {
+        socket.emit("set-distortion-coefs", {distortionCoefs})
+        localStorage.setItem(LS_DISTC_KEY, JSON.stringify(distortionCoefs))
+        setIsSavedDistCoefs(true);
+        setTimeout(() => setIsSavedDistCoefs(false), 2000)
+    }, [distortionCoefs])
+
+    const [isLoadedDistCoefs, setLoadedDistCoefs] = useState(false)
+    const loadDistortionCoefs = useCallback(() => {
+        const saved = localStorage.getItem(LS_DISTC_KEY);
+        if (saved) {
+            const distortionCoefs = JSON.parse(saved);
+            setDistortionCoefs(distortionCoefs);
+            socket.emit("set-distortion-coefs", {distortionCoefs})
+            setLoadedDistCoefs(true);
+            setTimeout(() => setLoadedDistCoefs(false), 2000)
+        }
+    }, [distortionCoefs])
     
     return (
         <Container fluid={true} className="p-2 shadow-md container-card">
@@ -170,6 +190,24 @@ export default function Configure({
                                         <Button className="mt-2 mr-2" variant="outline-primary" onClick={loadIntrinsicMatrices}>Load</Button>
                                         <span>{isSavedIntrinsics && "Intrinsic matrices saved!"}</span>
                                         <span>{isLoadedIntrinsics && "Intrinsic matrices loaded!"}</span>
+                                    </Col>
+                                </Row>
+                                <Row className="mb-4">
+                                    <Col xs={4} className='pt-2'>
+                                        <SmallHeader>Current Distortion Coefficients:</SmallHeader>
+                                        <Form.Control
+                                            as="textarea" rows={3}
+                                            value={JSON.stringify(distortionCoefs)}
+                                            onChange={(event) => {
+                                                const distortionCoefs = JSON.parse(event.target.value);
+                                                setDistortionCoefs(distortionCoefs);
+                                                socket.emit("set-distortion-coefs", {distortionCoefs})
+                                            }}
+                                        />
+                                        <Button className="mt-2" variant="outline-primary" onClick={saveDistortionCoefs}>Save</Button>
+                                        <Button className="mt-2 mr-2" variant="outline-primary" onClick={loadDistortionCoefs}>Load</Button>
+                                        <span>{isSavedDistCoefs && "Distortion coefficients saved!"}</span>
+                                        <span>{isLoadedDistCoefs && "Distortion coefficients loaded!"}</span>
                                     </Col>
                                 </Row>
                                 <Row className="mb-4">
