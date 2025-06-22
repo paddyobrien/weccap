@@ -74,30 +74,6 @@ def camera_state():
 
     return mocapSystem.state()
 
-@app.route("/api/bundle_adjustment", methods=["POST"])
-def bundle_adjustment_post():
-    data = request.json
-
-    image_points = np.array(data["imagePoints"])
-    camera_pose = camera_pose_to_internal(data["cameraPose"])
-    intrinsic_matrices = data["intrinsicMatrices"]
-    projection_matrices = camera_poses_to_projection_matrices(camera_pose, intrinsic_matrices)
-    # camera_pose = bundle_adjustment(image_points, camera_pose, projection_matrices)
-
-    object_points = triangulate_points(image_points, projection_matrices)
-    error = np.mean(
-        calculate_reprojection_errors(image_points, object_points, camera_pose)
-    )
-    print(error) 
-    # Take an array of image points, generate a new camera pose from it
-    # if the re-projection error is good enough
-    # run the points through triangulation and emit new object points
-    return json.dumps({
-        "imagePoints": image_points,
-        "cameraPose": camera_pose,
-        "error": error
-    }, cls=NumpyEncoder)
-
 # Websocket Messages
 @socketio.on("acquire-floor")
 def acquire_floor(data):

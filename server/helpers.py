@@ -54,53 +54,6 @@ def calculate_reprojection_error(image_points, object_point, camera_poses, intri
 
 
 # https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Triggs00.pdf
-# original bundle adjustment, specifies focal length as an adjustment
-# which seems like a mistake since its not used in the residual function
-def bundle_adjustment(image_points, camera_poses, intrinsic_matrices):
-
-    def params_to_camera_poses(params):
-        focal_distances = []
-        num_cameras = int((params.size - 1) / 7) + 1
-        camera_poses = [{"R": np.eye(3), "t": np.array([0, 0, 0], dtype=np.float32)}]
-        focal_distances.append(params[0])
-        for i in range(0, num_cameras - 1):
-            focal_distances.append(params[i * 7 + 1])
-            camera_poses.append(
-                {
-                    "R": Rotation.as_matrix(
-                        Rotation.from_rotvec(params[i * 7 + 2 : i * 7 + 3 + 2])
-                    ),
-                    "t": params[i * 7 + 3 + 2 : i * 7 + 6 + 2],
-                }
-            )
-
-        return camera_poses, focal_distances
-
-    def residual_function(params):
-        camera_poses, focal_distances = params_to_camera_poses(params)
-        projection_matrices = camera_poses_to_projection_matrices(camera_poses, intrinsic_matrices)
-        object_points = triangulate_points(image_points, projection_matrices)
-        errors = calculate_reprojection_errors(
-            image_points, object_points, camera_poses, intrinsic_matrices
-        )
-        errors = errors.astype(np.float32)
-        return errors
-
-    focal_distance = 1
-    init_params = np.array([focal_distance])
-    for i, camera_pose in enumerate(camera_poses[1:]):
-        rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
-        focal_distance = 1
-        init_params = np.concatenate([init_params, [focal_distance]])
-        init_params = np.concatenate([init_params, rot_vec])
-        init_params = np.concatenate([init_params, np.array(camera_pose["t"]).flatten()])
-
-    res = optimize.least_squares(
-        residual_function, init_params, verbose=2, loss="linear", ftol=1e-9
-    )
-    
-    return params_to_camera_poses(res.x)[0]
-
 
 def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camera_poses):
     num_cameras = len(camera_poses)
@@ -156,9 +109,9 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
                     parsed_distortion_coefs
                 )
         object_points = triangulate_points(fixed_image_points, new_projection_matrices)
-        return calculate_reprojection_errors(
+        return np.max(calculate_reprojection_errors(
             fixed_image_points, object_points, parsed_poses, parsed_intrinsics
-        )
+        ))
 
     # build initial params
     # rotation_vector, translation_vector, intrinsics, distortion_coef
@@ -179,7 +132,6 @@ def bundle_adjustment2(image_points, intrinsic_matrices, distortion_coefs, camer
     res = optimize.least_squares(
         residual_function,
         params,
-        max_nfev=100,
         jac='3-point',
         x_scale=scale,
         verbose=2,
