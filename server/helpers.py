@@ -131,6 +131,7 @@ def bundle_adjustment(image_points, intrinsic_matrices, distortion_coefs, camera
     res = optimize.least_squares(
         residual_function,
         params,
+        max_nfev=100,
         jac='3-point',
         x_scale=scale,
         verbose=2,

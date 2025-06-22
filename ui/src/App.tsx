@@ -28,6 +28,7 @@ export default function App() {
   const [hasToWorldCoordsMatrix, setHasToWorldMatrix] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [parsedCapturedPointsForPose, setParsedCapturedPointsForPose] = useState<Array<Array<Array<number>>>>([]);
+  const [reprojectedPoints, setReprojectedPoints] = useState<Array<Array<Array<number>>>>([])
 
   const objectPoints = useRef<Array<Array<Array<number>>>>([])
   const filteredObjects = useRef<object[][]>([])
@@ -86,6 +87,9 @@ export default function App() {
       setCameraPoses(data["camera_poses"])
       setIntrinsicMatrices(data["intrinsic_matrices"])
       setDistortionCoefs(data["distortion_coefs"])
+      if (data["reprojected"]) {
+        setReprojectedPoints(data["reprojected"])
+      }
     })
 
     return () => {
@@ -137,6 +141,7 @@ export default function App() {
                 <CameraView
                     mocapMode={mocapMode}
                     parsedCapturedPointsForPose={parsedCapturedPointsForPose}
+                    reprojectedPoints={reprojectedPoints}
                   />
               </Tab>
               <Tab eventKey="worldView" title="🌎 World View">
@@ -183,6 +188,7 @@ export default function App() {
                   setIntrinsicMatrices={setIntrinsicMatrices}
                   setDistortionCoefs={setDistortionCoefs}
                   setParsedCapturedPointsForPose={setParsedCapturedPointsForPose}
+                  setReprojectedPoints={setReprojectedPoints}
                   setLastObjectPointTimestamp={setLastObjectPointTimestamp}
                 />
               </Tab>

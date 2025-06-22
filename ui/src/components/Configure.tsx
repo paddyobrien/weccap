@@ -22,6 +22,7 @@ interface Props {
     setIntrinsicMatrices: (s: any) => void
     setDistortionCoefs: (s: any) => void
     setParsedCapturedPointsForPose: (s: Array<Array<Array<number>>>) => void
+    setReprojectedPoints: (s: Array<Array<Array<number>>>) => void
     setLastObjectPointTimestamp: (s: any) => void
 }
 
@@ -38,6 +39,7 @@ export default function Configure({
     setIntrinsicMatrices,
     setDistortionCoefs,
     setParsedCapturedPointsForPose,
+    setReprojectedPoints,
     setLastObjectPointTimestamp
 }: Props) {
     const [isSaved, setIsSaved] = useState(false)
@@ -134,6 +136,7 @@ export default function Configure({
                                 mocapMode={mocapMode}
                                 cameraPoses={cameraPoses}
                                 setParsedCapturedPointsForPose={setParsedCapturedPointsForPose} 
+                                setReprojectedPoints={setReprojectedPoints}
                             />
                         </Tab>
                         <Tab eventKey="scale" title="📏 Set scale">

@@ -12,13 +12,14 @@ const BASEURL = "http://localhost:3001/api/camera-stream";
 interface Props {
     mocapMode: Modes,
     parsedCapturedPointsForPose: any
+    reprojectedPoints: any
 }
 
 function randString() {
     return Math.random().toString(36).slice(2)
 }
 
-export default function CameraView({mocapMode, parsedCapturedPointsForPose}: Props) {
+export default function CameraView({mocapMode, parsedCapturedPointsForPose, reprojectedPoints}: Props) {
     const [fps, setFps] = useState(0);
     const [numCams, setNumCams] = useState(0);
     // A random image suffix to cache bust
@@ -66,7 +67,7 @@ export default function CameraView({mocapMode, parsedCapturedPointsForPose}: Pro
                     {mocapMode > Modes.CamerasNotFound ? 
                         <>
                             <img src={`${BASEURL}/${imageSuffix}`} />
-                            <PosePoints numCams={numCams} points={parsedCapturedPointsForPose} />
+                            <PosePoints numCams={numCams} points={parsedCapturedPointsForPose} reprojectedPoints={reprojectedPoints} />
                         </> 
                         : 
                         <div className="centered" style={{height: "300px", color: "#dc3545"}}>No cameras found!</div> }

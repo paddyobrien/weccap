@@ -22,9 +22,10 @@ interface Props {
     mocapMode: Modes,
     cameraPoses: any,
     setParsedCapturedPointsForPose: (newPoints: unknown) => void
+    setReprojectedPoints: (newPoints: unknown) => void
 }
 
-export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParsedCapturedPointsForPose }: Props) {
+export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParsedCapturedPointsForPose, setReprojectedPoints }: Props) {
     const [isCalculatingPose, setIsCalculatingPose] = useState(false);
     const [captureNextPointForPose, setCaptureNextPointForPose] = useState(false)
     const [capturedPointsForPose, setCapturedPointsForPose] = useState("");
@@ -89,6 +90,7 @@ export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParse
                         onClick={() => {
                             setCapturedPointsForPose("")
                             setParsedCapturedPointsForPose([]);
+                            setReprojectedPoints([])
                         }
                     }>
                         Clear {countOfPointsForCameraPoseCalibration} points
@@ -110,7 +112,7 @@ export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParse
                         size='sm'
                         className="mr-2"
                         variant="outline-primary"
-                        disabled={countOfPointsForCameraPoseCalibration === 0 || isCalculatingPose}
+                        // disabled={countOfPointsForCameraPoseCalibration === 0 || isCalculatingPose}
                         onClick={() => {
                             calculateCameraPose(parsedPoints)
                         }}>

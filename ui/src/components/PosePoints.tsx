@@ -12,7 +12,7 @@ function numberOfAngles(point: Array<Array<number>>){
 
 const WIDTH = 320;
 
-export default function PosePoints({numCams, points}:{numCams: number, points: Array<Array<Array<number>>>}){
+export default function PosePoints({numCams, points, reprojectedPoints}:{numCams: number, points: Array<Array<Array<number>>>,reprojectedPoints: Array<Array<Array<number>>>}){
   
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -41,8 +41,21 @@ export default function PosePoints({numCams, points}:{numCams: number, points: A
                 offset += WIDTH;
             })
         });
+
+        reprojectedPoints.forEach((point) => {
+
+            context.fillStyle =  "#FFFF00";
+
+            let offset = 0
+            point.forEach((coords) => {
+                if (coords[0] !== null) {
+                    context.fillRect(coords[0] + offset - 1, coords[1] - 1, 4, 4);
+                }
+                offset += WIDTH;
+            })
+        });
     }
-  }, [points, numCams])
+  }, [points, reprojectedPoints, numCams])
   
   return <canvas style={{position: "absolute", left: 10, zIndex: 100}} ref={canvasRef} width={numCams * WIDTH} height={WIDTH}/>
 }

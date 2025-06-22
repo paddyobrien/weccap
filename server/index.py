@@ -180,13 +180,28 @@ def calculate_bundle_adjustment(data):
         calculate_reprojection_errors(image_points, object_points, mocapSystem.camera_poses, mocapSystem.intrinsic_matrices)
     )
     print(f"New pose computed, average reprojection error: {error}")
+
+    reprojected_points = []
+    for object_point in object_points:
+        reprojected_point = []
+        for i, camera_pose in enumerate(mocapSystem.camera_poses):
+            projected_img_points, _ = cv.projectPoints(
+                np.expand_dims(object_point, axis=0).astype(np.float32),
+                np.array(camera_pose["R"], dtype=np.float64),
+                np.array(camera_pose["t"], dtype=np.float64),
+                mocapSystem.intrinsic_matrices[i],
+                np.array([]),
+            )
+            reprojected_point.append(projected_img_points[0][0].tolist())
+        reprojected_points.append(reprojected_point)
     
     socketio.emit(
         "camera-pose", {
             "camera_poses": camera_poses_to_serializable(mocapSystem.camera_poses),
             "intrinsic_matrices": camera_intrinsics_to_serializable(mocapSystem.intrinsic_matrices),
             "distortion_coefs": camera_distortion_to_serializable(mocapSystem.distortion_coefs),
-            "error": error
+            "error": error,
+            "reprojected": reprojected_points
         },
     )
 
@@ -258,7 +273,8 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, camera_poses) 
+    
     mocapSystem.set_camera_poses(new_poses)
     mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
@@ -280,6 +296,8 @@ def calculate_camera_pose(data):
     socketio.emit(
         "camera-pose", {
             "camera_poses": camera_poses_to_serializable(camera_poses),
+            "intrinsic_matrices": camera_intrinsics_to_serializable(mocapSystem.intrinsic_matrices),
+            "distortion_coefs": camera_distortion_to_serializable(mocapSystem.distortion_coefs),
             "error": error
         }
     )
