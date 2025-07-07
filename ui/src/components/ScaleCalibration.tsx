@@ -31,6 +31,7 @@ export default function ScaleCalibration({mocapMode, cameraPoses, setCameraPoses
     const updatePoints = useCallback((data) => {
         if (captureNextPoint) {
             objectPoints.current.push(data["object_points"])
+            setLastObjectPointTimestamp(Date.now())
             setCaptureNextPoint(false)
         }
     }, [captureNextPoint])

@@ -35,7 +35,8 @@ def calculate_reprojection_error(image_points, object_point, camera_poses, intri
     image_points_t = image_points.transpose((0, 1))
 
     errors = np.array([])
-    for i, camera_pose in enumerate(camera_poses):
+    for i in range(0, len(image_points)):
+        camera_pose = camera_poses[i]
         if np.all(image_points[i] == None, axis=0):
             continue
         projected_img_points, _ = cv.projectPoints(
@@ -55,17 +56,14 @@ def calculate_reprojection_error(image_points, object_point, camera_poses, intri
 
 # https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Triggs00.pdf
 def bundle_adjustment(image_points, intrinsic_matrices, distortion_coefs, camera_poses):
-    num_cameras = len(camera_poses)
-    section_size = 15
+    num_cameras = 3
+    section_size = 6
 
     # function to turn params back into data structures
     def parse_params(params):
         new_poses = []
-        new_intrinsics = []
-        new_dist = []
         for i in range(0, num_cameras):
             section_boundary = i * section_size
-
             new_poses.append(
                 {
                     "R": Rotation.as_matrix(
@@ -75,71 +73,45 @@ def bundle_adjustment(image_points, intrinsic_matrices, distortion_coefs, camera
                 }
             )
 
-            i_offset = section_boundary + 3 + 3
-            new_intrinsics.append(
-                np.array([
-                    [params[i_offset],   0.        , params[i_offset + 2]],
-                    [  0.        , params[i_offset+1], params[i_offset + 3]],
-                    [  0.        ,   0.        ,   1.        ]
-                ])
-            )
-
-            d_offset = i_offset + 4
-            d_vec = params[d_offset:d_offset+5]
-            new_dist.append(np.array(d_vec))
-
-        return new_poses, new_intrinsics, np.array(new_dist)
+        return new_poses
 
     # residual function
-    def residual_function(params):
-        parsed_poses, parsed_intrinsics, parsed_distortion_coefs = parse_params(params)
-        new_projection_matrices = camera_poses_to_projection_matrices(parsed_poses, parsed_intrinsics)
-        dimensions = (320, 240)
-        optimal_matrices = []
-        for i in range(0, num_cameras):
-            opt, _ = cv.getOptimalNewCameraMatrix(parsed_intrinsics[i], parsed_distortion_coefs[i], dimensions, 1, dimensions)
-            optimal_matrices.append(opt)
-        fixed_image_points = []
-        for i in range(0, len(image_points)):
-            fixed_image_points = fixed_image_points + undistort_image_points(
-                    [image_points[i]],
-                    optimal_matrices,
-                    parsed_intrinsics,
-                    parsed_distortion_coefs
-                )
-        object_points = triangulate_points(fixed_image_points, new_projection_matrices)
-        return np.max(calculate_reprojection_errors(
-            fixed_image_points, object_points, parsed_poses, parsed_intrinsics
-        ))
+    def residual_function(params, image_points):
+        parsed_poses = parse_params(params)
+        new_projection_matrices = camera_poses_to_projection_matrices(parsed_poses, intrinsic_matrices)
+        object_points = triangulate_points(image_points, new_projection_matrices)
+        return calculate_reprojection_errors(
+            image_points, object_points, parsed_poses, intrinsic_matrices
+        )
 
     # build initial params
     # rotation_vector, translation_vector, intrinsics, distortion_coef
     params = []
-    for i, camera_pose in enumerate(camera_poses):
+    for i in range(0, num_cameras):
+        camera_pose = camera_poses[i]
         rot_vec = Rotation.as_rotvec(Rotation.from_matrix(camera_pose["R"])).flatten()
         trans_vec = np.array(camera_pose["t"]).flatten()
-
-        i_mat = intrinsic_matrices[i]
-        dist_vec = distortion_coefs[i].tolist()
-        i_vec = [i_mat[0][0], i_mat[1][1], i_mat[0][2], i_mat[1][2]]
-        section = rot_vec.tolist() + trans_vec.tolist() + i_vec + dist_vec
+        section = rot_vec.tolist() + trans_vec.tolist()
         params = params + section
-    
+    dimensions = (320, 240)
+    optimal_matrices = []
+    for i in range(0, num_cameras):
+        opt, _ = cv.getOptimalNewCameraMatrix(intrinsic_matrices[i], distortion_coefs[i], dimensions, 1, dimensions)
+        optimal_matrices.append(opt)
 
-    scale = [0.01, 0.01, 0.01, 0.01, 0.01, 1, 1, 1, 1, 1, 0.01, 0.001, 0.001, 0.001, 0.001]
-    scale = scale + scale + scale + scale
     res = optimize.least_squares(
         residual_function,
         params,
-        max_nfev=100,
+        max_nfev=1000,
         jac='3-point',
-        x_scale=scale,
+        x_scale='jac',
         verbose=2,
         method='dogbox',
         loss="linear",
         ftol=1e-15,
         xtol=None,
-        f_scale=1
+        f_scale=1,
+        args=[image_points]
     )
     return parse_params(res.x)
     
@@ -418,9 +390,9 @@ def camera_distortion_to_serializable(distortion):
 def undistort_image_points(image_points, optimal_matrices, intrinsic_matrices, distortion_coefs):
     fixed = copy.deepcopy(image_points)
     for i, image_point_set in enumerate(image_points):
-        for j, image_point in enumerate(image_point_set):
-            wrapped_point = np.array(image_point, np.float32)
-            undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[i], np.array([distortion_coefs[i]]), np.eye(3), optimal_matrices[i])
+        for j in range(0, len(image_point_set)):
+            wrapped_point = np.array(image_point_set[j], np.float32)
+            undistorted = cv.undistortPoints(wrapped_point, intrinsic_matrices[j], np.array([distortion_coefs[j]]), np.eye(3), optimal_matrices[j])
             fixed[i][j] = undistorted[0][0]
     return fixed
 # Opportunity for performance improvements here. This doesn't change
@@ -449,3 +421,82 @@ def make_square(img):
         new_img[ay + img.shape[0] + i, :] = img[-1, :] * (1 - alpha)  # Bottom edge
 
     return new_img
+
+def align_plane_to_axis(world_points, to_world_matrix, axis='z'):
+    """
+    Calculates a new to-world matrix that aligns a plane, defined by a set of points, to a specified world axis.
+
+    Args:
+        world_points (np.ndarray): A NumPy array of shape (N, 3) representing N points in WORLD space that lie on a plane.
+        to_world_matrix (np.ndarray): The original 4x4 'to-world' matrix that was used to transform the points into world space.
+        axis (str): The world axis to align the plane's normal to. Can be 'x', 'y', or 'z'.
+
+    Returns:
+        np.ndarray: A new 4x4 'to-world' matrix that, if applied to the original local points, would align them correctly.
+    """
+    # --- 1. Find the normal of the plane in world coordinates ---
+    centroid = np.mean(world_points, axis=0)
+    centered_points = world_points - centroid
+    
+    try:
+        _, _, vh = np.linalg.svd(centered_points)
+        plane_normal = vh[2, :]
+        plane_normal /= np.linalg.norm(plane_normal)
+    except np.linalg.LinAlgError:
+        # If SVD fails, return the original matrix
+        return to_world_matrix
+
+    # --- 2. Define the target axis vector ---
+    if axis.lower() == 'x':
+        target_axis = np.array([1.0, 0.0, 0.0])
+    elif axis.lower() == 'y':
+        target_axis = np.array([0.0, 1.0, 0.0])
+    else: # Default to 'z'
+        target_axis = np.array([0.0, 0.0, 1.0])
+
+    # Ensure the normal points in a consistent direction relative to the target.
+    if np.dot(plane_normal, target_axis) < 0:
+        plane_normal *= -1
+
+    # --- 3. Calculate the rotation matrix to align the plane's normal with the target axis ---
+    rotation_axis = np.cross(plane_normal, target_axis)
+    rotation_axis_norm = np.linalg.norm(rotation_axis)
+    
+    if np.isclose(rotation_axis_norm, 0):
+        # Normal is already aligned with the target axis
+        rotation_matrix = np.identity(3)
+    elif np.isclose(rotation_axis_norm, 1.0) and np.isclose(np.dot(plane_normal, target_axis), -1.0):
+        # Normal is anti-parallel to the target axis (180-degree rotation)
+        # We need a special case for 180-degree rotation to find a perpendicular axis
+        if not np.isclose(abs(plane_normal[2]), 1.0): # if not aligned with Z
+            perp_axis = np.array([0, 0, 1])
+        else: # if aligned with Z, use Y
+            perp_axis = np.array([0, 1, 0])
+        rotation_axis = np.cross(plane_normal, perp_axis)
+        rotation_axis /= np.linalg.norm(rotation_axis)
+        angle = np.pi
+        K = np.array([[0, -rotation_axis[2], rotation_axis[1]],
+                      [rotation_axis[2], 0, -rotation_axis[0]],
+                      [-rotation_axis[1], rotation_axis[0], 0]])
+        rotation_matrix = np.identity(3) + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
+    else:
+        rotation_axis /= rotation_axis_norm
+        cos_angle = np.dot(plane_normal, target_axis)
+        angle = np.arccos(np.clip(cos_angle, -1.0, 1.0))
+
+        K = np.array([[0, -rotation_axis[2], rotation_axis[1]],
+                      [rotation_axis[2], 0, -rotation_axis[0]],
+                      [-rotation_axis[1], rotation_axis[0], 0]])
+        rotation_matrix = np.identity(3) + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
+
+    # --- 4. Construct the new 'to-world' matrix ---
+    # The new transformation is the alignment rotation applied AFTER the original transformation.
+    # M_new = R_align * M_orig
+    alignment_matrix_4x4 = np.identity(4)
+    alignment_matrix_4x4[:3, :3] = rotation_matrix
+    
+    # The translation of the original matrix should be preserved relative to the alignment.
+    # We apply the alignment rotation to the original translation vector.
+    final_to_world_matrix = alignment_matrix_4x4 @ to_world_matrix
+    
+    return final_to_world_matrix

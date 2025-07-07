@@ -21,7 +21,8 @@ from helpers import (
     bundle_adjustment,
     triangulate_points,
     NumpyEncoder,
-    undistort_image_points
+    undistort_image_points,
+    align_plane_to_axis
 )
 
 from settings import intrinsic_matrices
@@ -77,65 +78,49 @@ def camera_state():
 @socketio.on("acquire-floor")
 def acquire_floor(data):
     mocapSystem = MocapSystem.instance()
-    object_points = np.array([item for sublist in data["objectPoints"] for item in sublist])
+    world_points = np.array([item for sublist in data["objectPoints"] for item in sublist])   
+    initial_to_world = mocapSystem.to_world_coords_matrix
+
+    inv_initial_to_world = np.linalg.inv(initial_to_world)
+    world_points_homogeneous = np.hstack([world_points, np.ones((world_points.shape[0], 1))])
+    local_points_homogeneous = (inv_initial_to_world @ world_points_homogeneous.T).T
     
-    # 1. Fit floor plane (SVD)
-    centroid = np.mean(object_points, axis=0)
-    points_centered = object_points - centroid
-    U, s, Vh = np.linalg.svd(points_centered)
-    a, b, c = Vh[2, :]  
-    current_normal = np.array([a, b, c])
-    if current_normal[2] < 0:
-        current_normal *= -1  # Ensure Z points up
+    aligned_to_world_matrix = align_plane_to_axis(world_points, initial_to_world, axis='z')
 
-    # 2. Target normal: Z-up ([0,0,1])
-    target_normal = np.array([0, 0, 1])
+    print("\n--- New 'to-world' Matrix ---")
+    print(aligned_to_world_matrix)
 
-    # 3. Compute rotation (Rodrigues)
-    v = np.cross(current_normal, target_normal)
-    c_theta = np.dot(current_normal, target_normal)
-    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    rotation = np.eye(3) + kmat + kmat @ kmat * (1 / (1 + c_theta))
+    new_world_points = (aligned_to_world_matrix @ local_points_homogeneous.T).T[:, :3]
+    new_centroid = np.mean(new_world_points, axis=0)
+    new_centered_points = new_world_points - new_centroid
+    _, _, new_vh = np.linalg.svd(new_centered_points)
+    new_plane_normal = new_vh[2, :]
+    
+    print("\n--- Alignment result ---")
+    print(f"Normal of the plane after applying new matrix: {np.round(new_plane_normal, 5)}")
+    print("This should be close to [0, 0, -1] or [0, 0, 1].")
 
-    # 4. Apply rotation to existing matrix
-    existing_matrix = np.array(mocapSystem.to_world_coords_matrix)
-    new_matrix = existing_matrix.copy()
-    new_matrix[:3, :3] = rotation @ existing_matrix[:3, :3]
-
-    # 5. Check alignment: Compute error before/after
-    old_error = np.abs(np.dot(existing_matrix[:3, 2], current_normal) - 1)  # Current misalignment
-    transformed_points = (new_matrix @ np.column_stack([object_points, np.ones(len(object_points))]).T)[:3, :]
-    new_error = np.max(np.abs(transformed_points[2, :]))  # New floor error
-
-    # 6. Reverse rotation if error increases
-    if new_error > old_error:
-        rotation = np.eye(3) - kmat + kmat @ kmat * (1 / (1 - c_theta))  # Reverse direction
-        new_matrix[:3, :3] = rotation @ existing_matrix[:3, :3]
-        transformed_points = (new_matrix @ np.column_stack([object_points, np.ones(len(object_points))]).T)[:3, :]
-        new_error = np.max(np.abs(transformed_points[2, :]))
-
-    # 7. Force floor to z=0
-    # new_matrix[2, 3] = -np.dot(target_normal, centroid)
-
-    # 8. Update system
-    mocapSystem.to_world_coords_matrix = new_matrix
+    mocapSystem.to_world_coords_matrix = aligned_to_world_matrix 
+    wrapped_points = []
+    for item in new_world_points.tolist():
+        wrapped_points.append([item])
+    
     socketio.emit(
         "to-world-coords-matrix",
-        {"to_world_coords_matrix": new_matrix.tolist()},
+        {
+            "to_world_coords_matrix": mocapSystem.to_world_coords_matrix.tolist(),
+            "new_points": wrapped_points
+        },
     )
-    print(f"Alignment error: {new_error:.6f} (should be close to 0)")
+
 
 @socketio.on("set-origin")
 def set_origin(data):
     mocapSystem = MocapSystem.instance()
     object_point = np.array(data["objectPoint"])
-    to_world_coords_matrix = np.array(data["toWorldCoordsMatrix"])
+    to_world_coords_matrix = mocapSystem.to_world_coords_matrix
     transform_matrix = np.eye(4)
 
-    object_point[1], object_point[2] = (
-        object_point[2],
-        object_point[1],
-    )  # i dont fucking know why
     transform_matrix[:3, 3] = -object_point
 
     to_world_coords_matrix = transform_matrix @ to_world_coords_matrix
@@ -161,21 +146,10 @@ def change_point_settings(data):
 def calculate_bundle_adjustment(data):
     mocapSystem = MocapSystem.instance()
     image_points = np.array(data["cameraPoints"])
-    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
+    new_poses = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, mocapSystem.camera_poses) 
 
     mocapSystem.set_camera_poses(new_poses)
-    mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
-
-    fixed_image_points = []
-    for i in range(0, len(image_points)):
-        fixed_image_points = fixed_image_points + undistort_image_points(
-                [image_points[i]],
-                mocapSystem.optimal_matrices,
-                mocapSystem.intrinsic_matrices,
-                mocapSystem.distortion_coefs
-            )
-
-    object_points = triangulate_points(fixed_image_points, mocapSystem.projection_matrices)
+    object_points = triangulate_points(image_points, mocapSystem.projection_matrices)
     error = np.mean(
         calculate_reprojection_errors(image_points, object_points, mocapSystem.camera_poses, mocapSystem.intrinsic_matrices)
     )
@@ -253,7 +227,10 @@ def calculate_camera_pose(data):
                 ),
                 camera_poses_to_projection_matrices(np.concatenate(
                     [[camera_poses[-1]], [{"R": possible_Rs[i], "t": possible_ts[i]}]]
-                ), intrinsic_matrices),
+                ), [
+                        intrinsic_matrices[camera_i],
+                        intrinsic_matrices[camera_i+1]
+                    ]),
             )
             object_points_camera_coordinate_frame = np.array(
                 [possible_Rs[i].T @ object_point for object_point in object_points]
@@ -273,31 +250,36 @@ def calculate_camera_pose(data):
 
         camera_poses.append({"R": R, "t": t})
 
-    new_poses, new_intrinsics, new_distortion_coefs = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, camera_poses) 
+    new_poses = bundle_adjustment(image_points, mocapSystem.intrinsic_matrices, mocapSystem.distortion_coefs, camera_poses) 
     
     mocapSystem.set_camera_poses(new_poses)
-    mocapSystem.set_camera_intrinsics(new_intrinsics, new_distortion_coefs)
 
-    fixed_image_points = []
-    for i in range(0, len(image_points)):
-        fixed_image_points = fixed_image_points + undistort_image_points(
-                [image_points[i]],
-                mocapSystem.optimal_matrices,
-                mocapSystem.intrinsic_matrices,
-                mocapSystem.distortion_coefs
-            )
-
-    object_points = triangulate_points(fixed_image_points, mocapSystem.projection_matrices)
+    object_points = triangulate_points(image_points, mocapSystem.projection_matrices)
     error = np.mean(
-        calculate_reprojection_errors(image_points, object_points, camera_poses, mocapSystem.intrinsic_matrices)
+        calculate_reprojection_errors(image_points, object_points, mocapSystem.camera_poses, mocapSystem.intrinsic_matrices)
     )
     print(f"New pose computed, average reprojection error: {error}")
 
+    reprojected_points = []
+    for object_point in object_points:
+        reprojected_point = []
+        for i, camera_pose in enumerate(mocapSystem.camera_poses):
+            projected_img_points, _ = cv.projectPoints(
+                np.expand_dims(object_point, axis=0).astype(np.float32),
+                np.array(camera_pose["R"], dtype=np.float64),
+                np.array(camera_pose["t"], dtype=np.float64),
+                mocapSystem.intrinsic_matrices[i],
+                np.array([]),
+            )
+            reprojected_point.append(projected_img_points[0][0].tolist())
+        reprojected_points.append(reprojected_point)
+
     socketio.emit(
         "camera-pose", {
-            "camera_poses": camera_poses_to_serializable(camera_poses),
+            "camera_poses": camera_poses_to_serializable(mocapSystem.camera_poses),
             "intrinsic_matrices": camera_intrinsics_to_serializable(mocapSystem.intrinsic_matrices),
             "distortion_coefs": camera_distortion_to_serializable(mocapSystem.distortion_coefs),
+            "reprojected": reprojected_points,
             "error": error
         }
     )
@@ -313,7 +295,7 @@ def set_to_world_matrix(data):
     m = data["toWorldCoordsMatrix"]
     
     mocapSystem = MocapSystem.instance()
-    mocapSystem.to_world_coords_matrix= m 
+    mocapSystem.to_world_coords_matrix = np.array(m) 
 
 @socketio.on("set-intrinsic-matrices")
 def set_camera_poses(data):
@@ -340,7 +322,6 @@ def determine_scale(data):
     camera_poses = mocapSystem.camera_poses
 
     observed_distances = []
-    print(object_points)
     for object_points_i in object_points:
         if len(object_points_i) != 2:
             continue
@@ -352,8 +333,6 @@ def determine_scale(data):
     if len(observed_distances) == 0:
         socketio.emit("scale-error", {"message": "Did not find valid points"})
         return    
-    print("==")
-    print(observed_distances)
     scale_factor = real_distance / np.mean(observed_distances)
     
     for i in range(0, len(camera_poses)):

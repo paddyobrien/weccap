@@ -176,14 +176,14 @@ class MocapSystem:
     def _capture_image(self, frames):
         for i in range(0, self.num_cameras):
             print(f"Storing image to {os.getcwd()}")
-            cv.imwrite(f"./images/camera_{i}_{uuid.uuid4()}.jpg", frames[i])
+            cv.imwrite(f"./images/camera_{i}_{uuid.uuid4()}.png", frames[i])
 
     def _image_processing(self, frames):
         for i in range(0, self.num_cameras):
-            frames[i] = np.rot90(frames[i], k=0)
-            frames[i] = make_square(frames[i])
-            if ADVANCED_BA == False:
-                frames[i] = cv.undistort(frames[i], self.intrinsic_matrices[i], self.distortion_coefs[i])
+            frames[i] = np.copy(frames[i])
+            # frames[i] = np.rot90(frames[i], k=0)
+            
+            frames[i] = cv.undistort(frames[i], self.intrinsic_matrices[i], self.distortion_coefs[i])
             # many of these things were also done in _find_dot
             # frames[i] = cv.medianBlur(frames[i],9)
             # frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
@@ -231,13 +231,6 @@ class MocapSystem:
         return img, image_points
 
     def _triangulation(self, frames, image_points):
-        if ADVANCED_BA == True:
-            image_points = undistort_image_points(
-                image_points,
-                self.optimal_matrices,
-                self.intrinsic_matrices,
-                self.distortion_coefs
-            )
         errors, object_points, frames = (
             find_point_correspondance_and_object_points(
                 image_points, self.camera_poses, self.intrinsic_matrices, self.projection_matrices, frames
@@ -245,19 +238,11 @@ class MocapSystem:
         )
         # convert to world coordinates
         for i, object_point in enumerate(object_points):
-            new_object_point = (
-                np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]]) @ object_point
+            object_point_homogeneous = np.concatenate((object_point, [1]))
+            world_point_homogeneous = (
+                np.array(self.to_world_coords_matrix) @ object_point_homogeneous
             )
-            new_object_point = np.concatenate((new_object_point, [1]))
-            new_object_point = (
-                np.array(self.to_world_coords_matrix) @ new_object_point
-            )
-            new_object_point = new_object_point[:3] / new_object_point[3]
-            new_object_point[1], new_object_point[2] = (
-                new_object_point[2],
-                new_object_point[1],
-            )
-            object_points[i] = new_object_point
+            object_points[i] = world_point_homogeneous[:3]
         return object_points, errors, frames
 
     def _object_detection(self, object_points, errors):

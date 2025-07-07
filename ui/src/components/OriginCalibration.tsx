@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useState } from "react"
+import { MutableRefObject, useCallback, useEffect, useState } from "react"
 import { Button, Col, Container, Row } from "react-bootstrap"
 import InfoTooltip from "./InfoTooltip"
 import { socket } from "../lib/socket"
@@ -12,14 +12,17 @@ interface Props {
     objectPoints: MutableRefObject<number[][][]>,
 }
 
-export default function OriginCalibration({mocapMode, toWorldCoordsMatrix}: Props) {
+export default function OriginCalibration({mocapMode}: Props) {
     const [captureNextPoint, setCaptureNextPoint] = useState(false)
-    useSocketListener("object-points", (data) => {
-        if (captureNextPoint) {
-            socket.emit("set-origin", { objectPoint: data["object_points"][0], toWorldCoordsMatrix })
+
+    const updatePoints = useCallback((data) => {
+         if (captureNextPoint) {
+            socket.emit("set-origin", { objectPoint: data["object_points"][0]})
             setCaptureNextPoint(false)
         }
-    })
+    }, [captureNextPoint])
+    
+    useSocketListener("object-points", updatePoints)
    
     const objectPointsEnabled = mocapMode >= Modes.Triangulation
     return (

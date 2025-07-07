@@ -155,6 +155,8 @@ export default function Configure({
                                 cameraPoses={cameraPoses}
                                 toWorldCoordsMatrix={toWorldCoordsMatrix}
                                 objectPoints={objectPoints}
+                                lastObjectPointTimestamp={lastObjectPointTimestamp}
+                                setLastObjectPointTimestamp={setLastObjectPointTimestamp}
                             />
                         </Tab>
                         <Tab eventKey="origin" title="Ｘ Set origin">

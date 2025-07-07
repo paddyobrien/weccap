@@ -27,7 +27,7 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
         points.forEach((point) => {
             let angles = numberOfAngles(point);
             if (angles == numCams) {
-                context.fillStyle =  "#00FF00";
+                context.fillStyle =  "#FF0000";
             } else if (angles == numCams-1) {
                 context.fillStyle = "#0000FF";
             } else {
@@ -36,7 +36,7 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
             let offset = 0
             point.forEach((coords) => {
                 if (coords[0] !== null) {
-                    context.fillRect(coords[0] + offset - 1, coords[1] - 1, 4, 4);
+                    context.fillRect(coords[0] + offset, coords[1], 1, 1);
                 }
                 offset += WIDTH;
             })
@@ -49,7 +49,7 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
             let offset = 0
             point.forEach((coords) => {
                 if (coords[0] !== null) {
-                    context.fillRect(coords[0] + offset - 1, coords[1] - 1, 4, 4);
+                    context.fillRect(coords[0] + offset, coords[1] , 1, 1);
                 }
                 offset += WIDTH;
             })
@@ -57,5 +57,5 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
     }
   }, [points, reprojectedPoints, numCams])
   
-  return <canvas style={{position: "absolute", left: 10, zIndex: 100}} ref={canvasRef} width={numCams * WIDTH} height={WIDTH}/>
+  return <canvas style={{position: "absolute", left: 10, zIndex: 100}} ref={canvasRef} width={3 * WIDTH} height={WIDTH}/>
 }

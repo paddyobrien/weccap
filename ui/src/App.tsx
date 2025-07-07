@@ -74,6 +74,10 @@ export default function App() {
   useEffect(() => {
     socket.on("to-world-coords-matrix", (data) => {
       setToWorldCoordsMatrix(data["to_world_coords_matrix"])
+      if (data["new_points"]) {
+        objectPoints.current = data["new_points"]
+        setLastObjectPointTimestamp(Date.now())
+      }
     })
 
     return () => {

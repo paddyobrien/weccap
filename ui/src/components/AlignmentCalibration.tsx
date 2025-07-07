@@ -10,14 +10,17 @@ interface Props {
     cameraPoses: any,
     toWorldCoordsMatrix: any,
     objectPoints: MutableRefObject<number[][][]>,
+    lastObjectPointTimestamp: number,
+    setLastObjectPointTimestamp: (s: any) => void
 }
 
-export default function AlignmentCalibration({mocapMode, cameraPoses, toWorldCoordsMatrix, objectPoints}: Props) {
+export default function AlignmentCalibration({mocapMode, cameraPoses, toWorldCoordsMatrix, objectPoints, lastObjectPointTimestamp, setLastObjectPointTimestamp}: Props) {
     const [captureNextPoint, setCaptureNextPoint] = useState(false)
     useEffect(() => {
         socket.on("object-points", (data) => {
             if (captureNextPoint) {
                 objectPoints.current.push(data["object_points"])
+                setLastObjectPointTimestamp(Date.now())
                 setCaptureNextPoint(false);
             }
         })
@@ -40,6 +43,7 @@ export default function AlignmentCalibration({mocapMode, cameraPoses, toWorldCoo
                         disabled={!objectPointsEnabled}
                         onClick={() => {
                             setCaptureNextPoint(true);
+                            setLastObjectPointTimestamp(Date.now())
                         }
                     }>
                         Record point

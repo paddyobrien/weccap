@@ -25,6 +25,16 @@ interface Props {
     setReprojectedPoints: (newPoints: unknown) => void
 }
 
+function numberOfAngles(point: Array<Array<number>>){
+    let notNull = 0;
+    point.forEach((cam) => {
+        if (cam[0] != null) {
+            notNull++;
+        }
+    })
+    return notNull;
+}
+
 export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParsedCapturedPointsForPose, setReprojectedPoints }: Props) {
     const [isCalculatingPose, setIsCalculatingPose] = useState(false);
     const [captureNextPointForPose, setCaptureNextPointForPose] = useState(false)
@@ -34,10 +44,13 @@ export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParse
     useEffect(() => {
         const handler = (data: any) => {
             if (captureNextPointForPose) {
-                const newVal = `${capturedPointsForPose}${JSON.stringify(data)},`;
-                setCapturedPointsForPose(newVal);
-                setParsedCapturedPointsForPose(JSON.parse(`[${newVal.slice(0, -1)}]`))
-                setCaptureNextPointForPose(false);
+                // TODO - This should consider the number of active cams
+                if (numberOfAngles(data) === 3) {
+                    const newVal = `${capturedPointsForPose}${JSON.stringify(data)},`;
+                    setCapturedPointsForPose(newVal);
+                    setParsedCapturedPointsForPose(JSON.parse(`[${newVal.slice(0, -1)}]`))
+                    setCaptureNextPointForPose(false);
+                }
             }
         }
         socket.on("image-points", handler)
