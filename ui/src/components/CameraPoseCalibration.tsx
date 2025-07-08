@@ -45,7 +45,7 @@ export default function CameraPoseCalibration({ mocapMode, cameraPoses, setParse
         const handler = (data: any) => {
             if (captureNextPointForPose) {
                 // TODO - This should consider the number of active cams
-                if (numberOfAngles(data) === 3) {
+                if (numberOfAngles(data) === 4) {
                     const newVal = `${capturedPointsForPose}${JSON.stringify(data)},`;
                     setCapturedPointsForPose(newVal);
                     setParsedCapturedPointsForPose(JSON.parse(`[${newVal.slice(0, -1)}]`))

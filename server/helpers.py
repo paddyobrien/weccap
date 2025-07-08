@@ -56,7 +56,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses, intri
 
 # https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Triggs00.pdf
 def bundle_adjustment(image_points, intrinsic_matrices, distortion_coefs, camera_poses):
-    num_cameras = 3
+    num_cameras = len(intrinsic_matrices)
     section_size = 6
 
     # function to turn params back into data structures

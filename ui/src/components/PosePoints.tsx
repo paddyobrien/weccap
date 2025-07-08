@@ -57,5 +57,5 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
     }
   }, [points, reprojectedPoints, numCams])
   
-  return <canvas style={{position: "absolute", left: 10, zIndex: 100}} ref={canvasRef} width={3 * WIDTH} height={WIDTH}/>
+  return <canvas style={{position: "absolute", left: 10, zIndex: 100}} ref={canvasRef} width={numCams * WIDTH} height={WIDTH}/>
 }
