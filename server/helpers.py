@@ -161,14 +161,18 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, intr
             image_points_i.remove([None, None])
         except:
             pass
+    # use whatever camera has the most points visible as the root to reduce chances of losing a point
+    root_camera_index = max(range(len(image_points)), key=lambda i: len(image_points[i]))
+
     # [object_points, possible image_point groups, image_point from camera]
-    correspondances = [[[i]] for i in image_points[0]]
+    correspondances = [[[i]] for i in image_points[root_camera_index]]
 
     Ps = projection_matrices
 
-    root_image_points = [{"camera": 0, "point": point} for point in image_points[0]]
-
-    for i in range(1, len(camera_poses)):
+    root_image_points = [{"camera": root_camera_index, "point": point} for point in image_points[root_camera_index]]
+    num_cams = len(camera_poses)
+    for offset in range(num_cams - 1):
+        i = (root_camera_index + 1 + offset) % num_cams
         epipolar_lines = []
         for root_image_point in root_image_points:
             F = fundamental_from_projections(Ps[root_image_point["camera"]], Ps[i])
@@ -216,18 +220,6 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, intr
                         possible_group.append(possible_match.tolist())
                     new_correspondances_j += temp
                 correspondances[j] = new_correspondances_j
-
-        # This block of code attempts to solve the problem where points are lost if they are not seen in the "root" camera
-        # However it causes point to be tracked by multiple epipolar lines, which causes weird spurious matching
-        # If instead we simplify the problem and say all points are always visible in camera 1 then this can be removed
-        # So it has been commented out for now. 
-        # for not_closest_match_image_point in not_closest_match_image_points:
-        #     root_image_points.append(
-        #         {"camera": i, "point": not_closest_match_image_point}
-        #     )
-        #     temp = [[[None, None]] * i]
-        #     temp[0].append(not_closest_match_image_point.tolist())
-        #     correspondances.append(temp)
 
     object_points = []
     errors = []
