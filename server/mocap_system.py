@@ -54,6 +54,7 @@ class MocapSystem:
         self.camera_poses = None
         self.cameras = None
         self.stream = None
+        self.output_file = None
         self.intrinsic_matrices = intrinsic_matrices
         self.distortion_coefs = distortion_coefs
         self.projection_matrices = None
@@ -98,13 +99,18 @@ class MocapSystem:
     def end(self):
         self.cameras.end()
 
-    def start_recording(self, name):
+    def start_recording(self, name, record_video):
         print("starting record")
-        self.stream = Stream(self.cameras, file_name=f'videos/{name}.avi', display=True)
+        self.output_file = open(f"data/{name}.csv", "w")
+        if record_video:
+            self.stream = Stream(self.cameras, file_name=f'videos/{name}.avi', display=True)
 
     def stop_recording(self):
         if self.stream:
             self.stream.end()
+            self.stream = None
+        self.output_file.close()
+        self.output_file = None
 
     def set_socketio(self, socketio):
         self.socketio = socketio
@@ -261,6 +267,8 @@ class MocapSystem:
         return objects, filtered_objects
 
     def _emit_data(self, time, image_points, object_points, errors, objects, filtered_objects):
+        if self.output_file:
+            self._write_to_file(time, object_points)
         if self.capture_mode == Modes.PointCapture:
             self.socketio.emit("image-points", [x[0] for x in image_points])
         elif self.capture_mode >= Modes.Triangulation:
@@ -288,6 +296,10 @@ class MocapSystem:
         for i in range(0, self.num_cameras):
             opt, _ = cv.getOptimalNewCameraMatrix(self.intrinsic_matrices[i], self.distortion_coefs[i], dimensions, 1, dimensions)
             self.optimal_matrices.append(opt)
+
+    def _write_to_file(self, time, object_points):
+        coords = object_points.flatten().tolist()
+        self.output_file.write(f"{time},{",".join(str(x) for x in coords)}\n")
 
     def change_mode(self, target_mode):
         valid_source_modes = Transitions[target_mode]

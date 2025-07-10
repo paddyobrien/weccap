@@ -24,6 +24,8 @@ interface Props {
 export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoefs, toWorldCoordsMatrix, mocapMode, objectPoints, objectPointErrors, lastObjectPointTimestamp, isRecording, setIsRecording }: Props) {
     const [currentCaptureName, setCurrentCaptureName] = useState("");
     const [recordVideo, setRecordVideo] = useState(false);
+    const [percentageComplete, setPercentageComplete] = useState(0);
+    const [currentFileBeingZipped, setCurrentFileBeingZipped] = useState("");
     const objectPointTimes = useRef<Array<Array<Array<number>>>>([]);
     const imagePoints = useRef<Array<Array<number>>>([])
 
@@ -56,10 +58,13 @@ export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoef
             intrinsicMatrices,
             distortionCoefs,
             toWorldCoordsMatrix,
+            setPercentageComplete,
+            setCurrentFileBeingZipped
         )
     }, [currentCaptureName, cameraPoses, toWorldCoordsMatrix])
 
     const stopRecording = useCallback(() => {
+        socket.emit("stop_recording")
         createZipFile(
             currentCaptureName,
             objectPointTimes.current,
@@ -70,9 +75,10 @@ export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoef
             intrinsicMatrices,
             distortionCoefs,
             toWorldCoordsMatrix,
+            setPercentageComplete,
+            setCurrentFileBeingZipped
         )
         setIsRecording(false)
-        socket.emit("stop_recording")
 
     }, [currentCaptureName, cameraPoses, toWorldCoordsMatrix])
 
@@ -110,9 +116,7 @@ export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoef
                                 objectPointTimes.current = [];
                                 imagePoints.current = [];
                                 objectPointErrors.current = [];
-                                if (recordVideo) {
-                                    socket.emit("start_recording", {name: currentCaptureName})
-                                }
+                                socket.emit("start_recording", {name: currentCaptureName, recordVideo})
                                 setIsRecording(true);
                             }}>
                             {isRecording ? "Recording..." : "Start recording"}
@@ -142,6 +146,9 @@ export default function Capture({ cameraPoses, intrinsicMatrices, distortionCoef
                                 Download last recording
                             </Button>
                         </>
+                    }
+                    {percentageComplete > 0 &&
+                        <span>Generating Zipfile for download... {currentFileBeingZipped} {percentageComplete}%</span>
                     }
                 </Col>
             </Row>

@@ -343,8 +343,9 @@ def determine_scale(data):
 @socketio.on("start_recording")
 def start_recording(data):
     name = data["name"]
+    record_video = data["recordVideo"]
     mocapSystem = MocapSystem.instance()
-    mocapSystem.start_recording(name)
+    mocapSystem.start_recording(name, record_video)
 
 @socketio.on("stop_recording")
 def stop_recording():
