@@ -162,8 +162,8 @@ def find_point_correspondance_and_object_points(image_points, camera_poses, intr
         except:
             pass
     # use whatever camera has the most points visible as the root to reduce chances of losing a point
-    root_camera_index = max(range(len(image_points)), key=lambda i: len(image_points[i]))
-
+    # root_camera_index = max(range(len(image_points)), key=lambda i: len(image_points[i]))
+    root_camera_index = 0
     # [object_points, possible image_point groups, image_point from camera]
     correspondances = [[[i]] for i in image_points[root_camera_index]]
 

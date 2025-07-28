@@ -36,7 +36,7 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
             let offset = 0
             point.forEach((coords) => {
                 if (coords[0] !== null) {
-                    context.fillRect(coords[0] + offset, coords[1], 1, 1);
+                    context.fillRect(coords[0] + offset - 2, coords[1] - 2, 4, 4);
                 }
                 offset += WIDTH;
             })
@@ -49,7 +49,7 @@ export default function PosePoints({numCams, points, reprojectedPoints}:{numCams
             let offset = 0
             point.forEach((coords) => {
                 if (coords[0] !== null) {
-                    context.fillRect(coords[0] + offset, coords[1] , 1, 1);
+                    context.fillRect(coords[0] + offset - 1, coords[1] - 1 , 2, 2);
                 }
                 offset += WIDTH;
             })
