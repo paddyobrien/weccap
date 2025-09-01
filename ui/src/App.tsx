@@ -24,7 +24,6 @@ export const LS_DISTC_KEY = "DISTC";
 
 export default function App() {
   const [mocapMode, setMocapMode] = useState(Modes.ImageProcessing);
-  const [hasCameraPose, setHasCameraPose] = useState(false);
   const [hasToWorldCoordsMatrix, setHasToWorldMatrix] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [parsedCapturedPointsForPose, setParsedCapturedPointsForPose] = useState<Array<Array<Array<number>>>>([]);
@@ -87,7 +86,6 @@ export default function App() {
 
   useEffect(() => {
     socket.on("camera-pose", data => {
-      setHasCameraPose(true)
       setCameraPoses(data["camera_poses"])
       setIntrinsicMatrices(data["intrinsic_matrices"])
       setDistortionCoefs(data["distortion_coefs"])
@@ -105,10 +103,8 @@ export default function App() {
   const stateUpdater = useCallback((data) => {
     setMocapMode(data.mode)
     if (!data.camera_poses) {
-      setHasCameraPose(false)
       socket.emit("set-camera-poses", {cameraPoses})
     } else {
-      setHasCameraPose(true)
       setCameraPoses(data.camera_poses)
     }
     if (!data.to_world_coords_matrix) {
